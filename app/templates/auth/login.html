@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Sign in · SulitShelf PH{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+{% block body %}
+<main class="auth-shell">
+  <a class="brand" href="{{ url_for('main.home') }}"><i>▣</i><strong>SulitShelf <em>PH</em></strong></a>
+  <section>
+    <p class="eyebrow">PROMOTER &amp; ADMIN ACCESS</p>
+    <h1>Welcome back.</h1>
+    <p>Manage your affiliate shelf, product listings, analytics, and optional support.</p>
+    <div class="oauth-grid" aria-label="Social sign-in options">
+      {% for provider in oauth_providers %}
+        {% if provider.configured %}
+          <a class="oauth-button oauth-{{ provider.key }}" href="{{ url_for('auth.oauth_start', provider=provider.key) }}"><b>{{ provider.mark }}</b><span>Continue with {{ provider.name }}</span></a>
+        {% else %}
+          <span class="oauth-button unavailable" title="The administrator must configure this provider"><b>{{ provider.mark }}</b><span>{{ provider.name }} setup needed</span></span>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <div class="oauth-divider"><span>or use your password</span></div>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Email<input type="email" name="email" required autocomplete="email"></label>
+      <label>Password<input type="password" name="password" required autocomplete="current-password"></label>
+      <label class="check"><input type="checkbox" name="remember" value="yes">Keep me signed in</label>
+      <button class="button primary">Sign in</button>
+    </form>
+    <p>New promoter? <a href="{{ url_for('auth.register') }}">Create an account</a></p>
+  </section>
+</main>
+{% endblock %}

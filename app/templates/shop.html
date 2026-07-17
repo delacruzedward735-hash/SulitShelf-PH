@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ shop.name }} · SulitShelf PH{% endblock %}
+{% block meta %}<meta name="description" content="{{ shop.bio }}"><link rel="canonical" href="{{ url_for('main.public_shop', slug=shop.slug, _external=True) }}">{% endblock %}
+{% block body %}
+{% include "_header.html" %}
+<main>
+  <section class="shop-hero">
+    <p>INDEPENDENT PROMOTER SHOP</p>
+    <h1>{{ shop.name }}</h1>
+    {% if shop.is_verified %}<b class="verified-shop">✓ Verified promoter</b>{% endif %}
+    <span>{{ shop.bio }}</span><small>✓ Active shelf · {{ products|length }} products</small>
+    <div class="shop-share"><button type="button" class="button light" data-share-url="{{ url_for('main.public_shop', slug=shop.slug, _external=True) }}" data-share-title="{{ shop.name }} on SulitShelf PH">Share shop</button><button type="button" class="button light" data-copy="{{ url_for('main.public_shop', slug=shop.slug, _external=True) }}">Copy link</button></div>
+  </section>
+  <section class="section shop-growth-strip"><div><p class="eyebrow">SCAN &amp; SHARE</p><h2>Take this shelf anywhere.</h2><p>Use this QR code in social posts, printed cards, or your link-in-bio.</p></div><img src="{{ url_for('main.shop_qr', slug=shop.slug) }}" alt="QR code for {{ shop.name }}"></section>
+  <section class="section"><div class="section-title"><div><p class="eyebrow">PROMOTER PICKS</p><h2>Products on this shelf</h2></div></div>{% if products %}<div class="product-grid">{% for product in products %}{% set card_source=shop_source %}{% include "_product_card.html" %}{% endfor %}</div>{% else %}<div class="empty"><h3>This promoter is preparing their first shelf.</h3></div>{% endif %}</section>
+  <section class="disclosure"><b>ⓘ</b><p><strong>Affiliate disclosure.</strong> This promoter may earn a commission from qualified purchases. Always confirm current product details on the marketplace.</p></section>
+</main>
+{% endblock %}

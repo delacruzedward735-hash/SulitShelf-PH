@@ -1,0 +1,1 @@
+Single-database Flask-Migrate configuration. Run `flask --app run.py db upgrade` after setting DATABASE_URL.

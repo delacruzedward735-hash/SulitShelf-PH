@@ -1,0 +1,11 @@
+<div class="market-ribbon"><span>Shopee</span><span>Lazada</span><span>TikTok Shop</span><small>Independent affiliate shops, together in one mall.</small></div>
+<header class="site-header">
+  <a class="brand" href="{{ url_for('main.home') }}"><i>▣</i><strong>SulitShelf <em>PH</em></strong></a>
+  <nav><a href="{{ url_for('main.home') }}#campaigns">Collections</a><a href="{{ url_for('main.home') }}#departments">Departments</a><a href="{{ url_for('main.home') }}#products">Products</a><a href="{{ url_for('main.promoter_services') }}">Promoter help</a></nav>
+  <div class="header-actions">
+    {% if current_user.is_authenticated %}
+      {% if current_user.is_admin %}<a href="{{ url_for('admin.dashboard') }}">Admin CMS</a>{% endif %}
+      <a class="button dark" href="{{ url_for('promoter.dashboard') }}">My studio</a>
+    {% else %}<a href="{{ url_for('auth.login') }}">Sign in</a><a class="button dark" href="{{ url_for('auth.register') }}">Open a shelf</a>{% endif %}
+  </div>
+</header>

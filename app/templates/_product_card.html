@@ -1,0 +1,22 @@
+<article class="product-card market-{{ product.marketplace }}">
+  <a class="product-image" href="{{ url_for('main.product_detail', product_id=product.id) }}">
+    <img src="{{ url_for('main.product_image', name=product.image_name) }}" alt="{{ product.name }}" loading="lazy">
+    <span>{{ 'TikTok Shop' if product.marketplace == 'tiktok' else product.marketplace|title }}</span>
+    <div class="card-badges">
+      {% if product.is_sponsored %}<b class="sponsored-label">Sponsored</b>{% endif %}
+      {% if product.badge %}<b>{{ product.badge }}</b>{% endif %}
+    </div>
+  </a>
+  <div class="product-content">
+    <small>{{ product.department }} · <a href="{{ url_for('main.public_shop', slug=product.shop.slug) }}">{{ product.shop.name }}</a>{% if product.shop.is_verified %} <i class="verified-mark" title="Verified promoter">✓</i>{% endif %}</small>
+    <h3><a href="{{ url_for('main.product_detail', product_id=product.id) }}">{{ product.name }}</a></h3>
+    {% if product.why_sulit %}<p class="why-sulit"><b>Why it’s sulit:</b> {{ product.why_sulit }}</p>{% else %}<p>{{ product.description }}</p>{% endif %}
+    {% if product.best_for %}<span class="best-for">Best for: {{ product.best_for }}</span>{% endif %}
+    <div class="card-price"><strong>{{ php(product.price_cents) }}</strong><small>Checked {{ product.price_checked_at.strftime('%b %d') }}</small></div>
+    <div class="card-actions">
+      <a class="button primary" href="{{ url_for('main.outbound', product_id=product.id, source=card_source|default('mall')) }}" target="_blank" rel="sponsored nofollow noopener">Check current price ↗</a>
+      <a class="card-details" href="{{ url_for('main.product_detail', product_id=product.id) }}" aria-label="View and share {{ product.name }}">Share</a>
+    </div>
+    {% if product.click_count %}<small class="real-clicks">{{ product.click_count }} real marketplace click{{ '' if product.click_count == 1 else 's' }}</small>{% endif %}
+  </div>
+</article>

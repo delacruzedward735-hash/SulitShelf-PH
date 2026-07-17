@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Open a shelf · SulitShelf PH{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+{% block body %}
+<main class="auth-shell">
+  <a class="brand" href="{{ url_for('main.home') }}"><i>▣</i><strong>SulitShelf <em>PH</em></strong></a>
+  <section>
+    <p class="eyebrow">FREE &amp; OPEN SOURCE</p>
+    <h1>Open your shelf.</h1>
+    <p>Publish approved affiliate products without a subscription or product-slot limit.</p>
+    <div class="oauth-grid" aria-label="Social registration options">
+      {% for provider in oauth_providers %}
+        {% if provider.configured %}
+          <a class="oauth-button oauth-{{ provider.key }}" href="{{ url_for('auth.oauth_start', provider=provider.key) }}"><b>{{ provider.mark }}</b><span>Join with {{ provider.name }}</span></a>
+        {% else %}
+          <span class="oauth-button unavailable" title="The administrator must configure this provider"><b>{{ provider.mark }}</b><span>{{ provider.name }} setup needed</span></span>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <div class="oauth-divider"><span>or create a password account</span></div>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Display name<input name="display_name" required minlength="2" maxlength="80" autocomplete="name"></label>
+      <label>Email<input type="email" name="email" required autocomplete="email"></label>
+      <label>Password<input type="password" name="password" required minlength="10" autocomplete="new-password"></label>
+      <button class="button primary">Create free promoter account</button>
+    </form>
+    <p>Already registered? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
+  </section>
+</main>
+{% endblock %}

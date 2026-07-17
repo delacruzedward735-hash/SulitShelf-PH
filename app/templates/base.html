@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="SulitShelf PH — a free, open-source mall for independent affiliate shops.">
+  {% block meta %}{% endblock %}
+  <title>{% block title %}SulitShelf PH{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}<div class="flash-stack">{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+  {% endwith %}
+  {% block body %}{% endblock %}
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</body>
+</html>

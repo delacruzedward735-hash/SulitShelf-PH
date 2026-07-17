@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block body %}
+{% include "_header.html" %}
+<main>
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">STUDENT TECH &amp; EVERYDAY SULIT FINDS</p>
+      <h1>Every sulit find.<br><span>One colorful mall.</span></h1>
+      <p>Discover useful products from independent Filipino promoters across Shopee, Lazada, and TikTok Shop. No shopper account needed.</p>
+      <div><a class="button primary" href="#products">Browse the mall</a><a class="text-link" href="{{ url_for('auth.register') }}">Open your free shelf →</a></div>
+      <ul><li>✓ Curated collections</li><li>✓ Direct marketplace links</li><li>✓ Real click signals</li></ul>
+    </div>
+    <div class="mall-card">
+      <div class="mall-sign">▣ SULITSHELF MALL <b>OPEN</b></div>
+      <article class="shopee"><span>01</span><div><strong>Shopee</strong><small>Orange-tag finds</small></div>→</article>
+      <article class="lazada"><span>02</span><div><strong>Lazada</strong><small>Colorful everyday deals</small></div>→</article>
+      <article class="tiktok"><span>03</span><div><strong>TikTok Shop</strong><small>Creator-led discoveries</small></div>→</article>
+    </div>
+  </section>
+
+  <section class="section campaign-section" id="campaigns">
+    <div class="section-title"><div><p class="eyebrow">QUICK COLLECTIONS</p><h2>Start with what you need.</h2></div><p>Campaign shelves make it easy to share one focused group of useful products.</p></div>
+    <div class="campaign-grid">
+      {% for campaign in campaigns %}
+      <a href="{{ url_for('main.campaign', slug=campaign.slug) }}"><small>{{ campaign.eyebrow }}</small><h3>{{ campaign.title }}</h3><p>{{ campaign.description }}</p><span>{{ campaign.products|length }} picks →</span></a>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if admin_picks %}
+  <section class="section feature-shelf admin-picks"><div class="section-title"><div><p class="eyebrow">SULITSHELF ADMIN PICKS</p><h2>Useful finds selected by the project.</h2></div><p>These links may earn the SulitShelf administrator an affiliate commission.</p></div><div class="product-grid">{% for product in admin_picks %}{% set card_source='admin-picks' %}{% include "_product_card.html" %}{% endfor %}</div></section>
+  {% endif %}
+
+  {% if sponsored %}
+  <section class="section feature-shelf sponsored-shelf"><div class="section-title"><div><p class="eyebrow">SPONSORED SHELF</p><h2>Promoted listings</h2></div><p>Paid placements are always labeled. Sponsorship does not mean SulitShelf guarantees a seller or product.</p></div><div class="product-grid">{% for product in sponsored %}{% set card_source='sponsored' %}{% include "_product_card.html" %}{% endfor %}</div></section>
+  {% endif %}
+
+  {% if trending %}
+  <section class="section feature-shelf trending-shelf"><div class="section-title"><div><p class="eyebrow">TRENDING ON SULITSHELF</p><h2>Most-clicked real listings.</h2></div><p>Ranked from outbound marketplace clicks—not fake orders or copied review counts.</p></div><div class="product-grid">{% for product in trending %}{% set card_source='trending' %}{% include "_product_card.html" %}{% endfor %}</div></section>
+  {% endif %}
+
+  <section class="section" id="departments">
+    <div class="section-title"><div><p class="eyebrow">SHOP BY DEPARTMENT</p><h2>Everything has its own shelf.</h2></div><p>Browse practical departments for Filipino shoppers.</p></div>
+    <div class="departments">{% for item in departments %}<a href="{{ url_for('main.home', department=item) }}#products"><i>{{ '%02d'|format(loop.index) }}</i><strong>{{ item }}</strong><span>→</span></a>{% endfor %}</div>
+  </section>
+
+  <section class="section catalog" id="products">
+    <div class="section-title"><div><p class="eyebrow">LIVE PROMOTER SHELVES</p><h2>Find it here. Buy it there.</h2></div><p>Always verify the latest price, seller, stock, delivery, and returns on the destination marketplace.</p></div>
+    <form class="filters" method="get">
+      <input name="q" value="{{ query }}" maxlength="100" placeholder="Search all shelves" aria-label="Search products">
+      <select name="department" aria-label="Department"><option value="">All departments</option>{% for item in departments %}<option value="{{ item }}" {% if selected_department == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
+      <select name="marketplace" aria-label="Marketplace"><option value="">All marketplaces</option>{% for value,label in [('shopee','Shopee'),('lazada','Lazada'),('tiktok','TikTok Shop')] %}<option value="{{ value }}" {% if selected_marketplace == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      <button>Filter</button>
+    </form>
+    {% if products %}<div class="product-grid">{% for product in products %}{% set card_source='mall' %}{% include "_product_card.html" %}{% endfor %}</div>{% else %}<div class="empty"><b>▣</b><h3>No products match this shelf yet.</h3><p>Try another search or department.</p></div>{% endif %}
+  </section>
+
+  <section class="plans-section open-source-section" id="plans"><div><p class="eyebrow">FREE &amp; OPEN SOURCE</p><h2>Your links.<br>Your shop.<br><span>No subscription.</span></h2><p>Create a personal storefront, publish approved affiliate products, and track outbound clicks for free.</p><a class="button primary" href="{{ url_for('auth.register') }}">Open a free shelf</a></div><div class="plan-grid open-source-grid"><article><p>Free forever</p><h3>₱0<small>/month</small></h3><strong>No paid feature gates</strong><ul><li>✓ Public affiliate shop</li><li>✓ Product click analytics</li><li>✓ All supported marketplaces</li></ul></article><article><p>Creator growth kit</p><h3>Share<small>everywhere</small></h3><strong>Links, QR codes, and campaign pages</strong><ul><li>✓ Shop and product QR codes</li><li>✓ Traffic-source analytics</li><li>✓ Mobile sharing tools</li></ul></article><article><p>Optional support</p><h3>Donate<small>once</small></h3><strong>Never required for access</strong><ul><li>✓ Dodo one-time donation</li><li>✓ GCash, Maya, or e-wallet QR</li><li>✓ No recurring charges</li></ul></article></div></section>
+  <section class="disclosure"><b>ⓘ</b><p><strong>Affiliate disclosure.</strong> Product links may earn independent promoters a commission at no additional cost to shoppers. SulitShelf PH does not process marketplace product payments, deliveries, or returns.</p></section>
+</main>
+<footer><strong>SulitShelf PH</strong><span>One mall. Many affiliate shops.</span><small>Shopee, Lazada, and TikTok Shop are trademarks of their respective owners.</small></footer>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Promoter Services · SulitShelf PH{% endblock %}
+{% block meta %}<meta name="description" content="Optional one-time setup, listing, branding, and content help for SulitShelf PH promoters.">{% endblock %}
+{% block body %}
+{% include "_header.html" %}
+<main>
+  <section class="services-hero"><p>OPTIONAL DONE-FOR-YOU HELP</p><h1>Keep the platform free.<br><span>Pay only if you want help.</span></h1><p>SulitShelf features remain free for everyone. These are separate one-time human services for promoters who want assistance launching faster.</p></section>
+  <section class="section"><div class="section-title"><div><p class="eyebrow">PROMOTER SERVICES</p><h2>Practical help, clear prices.</h2></div><p>Final pricing depends on the content and work required. Agree on scope before any payment.</p></div><div class="service-grid">
+    <article><span>01</span><h3>Storefront setup</h3><strong>₱299–₱999</strong><p>Shop profile, basic branding, departments, and publishing guidance.</p></article>
+    <article><span>02</span><h3>10 optimized listings</h3><strong>₱199–₱399</strong><p>WebP-ready images, honest descriptions, “Why it’s sulit” copy, and badges.</p></article>
+    <article><span>03</span><h3>Custom shop branding</h3><strong>₱499–₱1,500</strong><p>Color direction, header visuals, QR materials, and custom-domain help.</p></article>
+    <article><span>04</span><h3>Short-video content kit</h3><strong>₱149–₱399</strong><p>Hooks, script outlines, captions, and the exact tracked links to share.</p></article>
+  </div></section>
+  <section class="service-cta"><div><p class="eyebrow">READY TO START?</p><h2>Tell us what you sell and where you promote.</h2><p>Human service fees never buy verification, fake clicks, or hidden ranking. Sponsored placements—when available—are labeled publicly.</p></div>{% if contact_email %}<a class="button primary" href="mailto:{{ contact_email }}?subject=SulitShelf%20promoter%20service%20inquiry">Email {{ contact_email }}</a>{% else %}<a class="button primary" href="{{ url_for('auth.register') }}">Open a free shelf first</a>{% endif %}</section>
+</main>
+{% endblock %}

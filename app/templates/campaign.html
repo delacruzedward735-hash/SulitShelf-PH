@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign.title }} · SulitShelf PH{% endblock %}
+{% block meta %}<meta name="description" content="{{ campaign.description }}"><link rel="canonical" href="{{ url_for('main.campaign', slug=campaign.slug, _external=True) }}">{% endblock %}
+{% block body %}
+{% include "_header.html" %}
+<main>
+  <section class="collection-hero"><p>{{ campaign.eyebrow }}</p><h1>{{ campaign.title }}</h1><span>{{ campaign.description }}</span><div><button class="button light" type="button" data-share-url="{{ url_for('main.campaign', slug=campaign.slug, _external=True) }}" data-share-title="{{ campaign.title }} on SulitShelf PH">Share collection</button><button class="button light" type="button" data-copy="{{ url_for('main.campaign', slug=campaign.slug, _external=True) }}">Copy link</button></div></section>
+  <section class="section"><div class="section-title"><div><p class="eyebrow">CURATED AFFILIATE PICKS</p><h2>{{ products|length }} products in this collection</h2></div><p>Prices and stock may change. Check the destination marketplace before purchasing.</p></div>{% if products %}<div class="product-grid">{% for product in products %}{% set card_source='campaign' %}{% include "_product_card.html" %}{% endfor %}</div>{% else %}<div class="empty"><h3>This collection is ready for its first products.</h3><p>The administrator can add product IDs from the CMS.</p></div>{% endif %}</section>
+</main>
+{% endblock %}

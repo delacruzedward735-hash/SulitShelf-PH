@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }} · SulitShelf PH{% endblock %}
+{% block meta %}
+<meta name="description" content="{{ product.why_sulit or product.description }}">
+<meta property="og:title" content="{{ product.name }}">
+<meta property="og:description" content="{{ product.why_sulit or product.description }}">
+<meta property="og:image" content="{{ url_for('main.product_image', name=product.image_name, _external=True) }}">
+<link rel="canonical" href="{{ url_for('main.product_detail', product_id=product.id, _external=True) }}">
+{% endblock %}
+{% block body %}
+{% include "_header.html" %}
+<main>
+  <section class="product-detail-shell">
+    <div class="product-detail-image"><img src="{{ url_for('main.product_image', name=product.image_name) }}" alt="{{ product.name }}">{% if product.is_sponsored %}<span>Sponsored placement</span>{% endif %}</div>
+    <div class="product-detail-copy">
+      <p class="eyebrow">{{ product.department }} · {{ 'TikTok Shop' if product.marketplace == 'tiktok' else product.marketplace|title }}</p>
+      <h1>{{ product.name }}</h1>
+      <a class="promoter-line" href="{{ url_for('main.public_shop', slug=product.shop.slug) }}">By {{ product.shop.name }} {% if product.shop.is_verified %}<i class="verified-mark">✓</i>{% endif %}</a>
+      <strong class="detail-price">{{ php(product.price_cents) }}</strong>
+      <small class="price-note">Price last checked {{ product.price_checked_at.strftime('%B %d, %Y') }}. Confirm the current price and stock on the marketplace.</small>
+      {% if product.why_sulit %}<div class="detail-reason"><small>WHY IT’S SULIT</small><p>{{ product.why_sulit }}</p></div>{% endif %}
+      {% if product.best_for %}<div class="detail-best"><b>Best for</b><span>{{ product.best_for }}</span></div>{% endif %}
+      <p class="detail-description">{{ product.description }}</p>
+      <a class="button primary detail-cta" href="{{ url_for('main.outbound', product_id=product.id, source=detail_source) }}" target="_blank" rel="sponsored nofollow noopener">Check current price on {{ 'TikTok Shop' if product.marketplace == 'tiktok' else product.marketplace|title }} ↗</a>
+      <div class="share-kit"><button type="button" data-share-url="{{ share_url }}" data-share-title="{{ product.name }} on SulitShelf PH">Share product</button><button type="button" data-copy="{{ share_url }}">Copy link</button><a href="{{ url_for('main.product_qr', product_id=product.id) }}" download>Download QR</a></div>
+      <div class="product-qr"><img src="{{ url_for('main.product_qr', product_id=product.id) }}" alt="QR code for {{ product.name }}"><span>Scan to open this product page</span></div>
+    </div>
+  </section>
+  {% if related %}<section class="section related-products"><div class="section-title"><div><p class="eyebrow">MORE FROM THIS DEPARTMENT</p><h2>You may also find these useful.</h2></div></div><div class="product-grid">{% for product in related %}{% set card_source='shared' %}{% include "_product_card.html" %}{% endfor %}</div></section>{% endif %}
+  <section class="section report-section" id="report"><div><p class="eyebrow">HELP KEEP SULITSHELF TRUSTWORTHY</p><h2>Something wrong with this listing?</h2><p>Reports are private and reviewed by the administrator.</p></div><form method="post" action="{{ url_for('main.report_product', product_id=product.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Reason<select name="reason" required><option value="" selected disabled>Choose a reason</option>{% for value,label in report_reasons.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label><label>Optional details<textarea name="details" maxlength="300" placeholder="Tell us what should be checked."></textarea></label><button class="button dark">Submit private report</button></form></section>
+</main>
+{% endblock %}

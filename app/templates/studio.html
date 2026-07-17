@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Promoter Studio · SulitShelf PH{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
+{% block body %}
+<main class="dashboard-shell studio-shell" data-tab-root data-default-tab="{{ request.args.get('tab','overview') }}">
+  <aside class="dash-sidebar studio-sidebar">
+    <a class="brand light" href="{{ url_for('main.home') }}"><i>▣</i><strong>SulitShelf PH</strong></a>
+    <small class="sidebar-caption">PROMOTER STUDIO</small>
+    <nav>
+      <button data-tab-button="overview"><span class="nav-icon">⌑</span>Overview</button>
+      <button data-tab-button="add"><span class="nav-icon">◇</span>Add product</button>
+      <button data-tab-button="growth"><span class="nav-icon">↗</span>Growth tools</button>
+      <button data-tab-button="settings"><span class="nav-icon">⚙</span>Shop settings</button>
+      <button data-tab-button="support"><span class="nav-icon">♡</span>Support project</button>
+    </nav>
+    <div class="side-plan open-source-card">
+      <small>OPEN SOURCE ACCESS</small><strong>Free forever</strong>
+      <span>No subscription or paid feature gates</span>
+      <div class="slot-meter"><i></i></div>
+      <button type="button" data-open-tab="support">♡ Support SulitShelf</button>
+    </div>
+    <div class="sidebar-account"><b>{{ current_user.display_name[:1]|upper }}</b><span><strong>{{ current_user.display_name }}</strong><small>{{ current_user.email }}</small></span></div>
+    {% if current_user.is_admin %}<a href="{{ url_for('admin.dashboard') }}"><span class="nav-icon">◈</span>Administrator CMS</a>{% endif %}
+    <a href="{{ url_for('main.home') }}"><span class="nav-icon">←</span>Public mall</a>
+    <form method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button><span class="nav-icon">↪</span>Sign out</button></form>
+  </aside>
+
+  <section class="dash-main studio-main">
+    <header class="studio-header">
+      <div><p>PROMOTER WORKSPACE</p><h1>{{ current_user.shop.name }}</h1></div>
+      <a class="public-shop-link" href="{{ url_for('main.public_shop', slug=current_user.shop.slug) }}" target="_blank" rel="noopener">View public shop <span>↗</span></a>
+    </header>
+
+    <section data-tab-panel="overview">
+      <div class="stats four"><article><small>Products</small><strong>{{ products|length }}</strong></article><article><small>All-time clicks</small><strong>{{ products|sum(attribute='click_count') }}</strong></article><article><small>Clicks · last 7 days</small><strong>{{ clicks_7d }}</strong></article><article><small>Access</small><strong>Free forever</strong></article></div>
+      <div class="panel onboarding-panel"><div class="panel-title"><div><p>QUICK START</p><h2>{{ onboarding_done }}/{{ onboarding|length }} growth steps complete</h2></div><span>{{ (onboarding_done * 100 / onboarding|length)|round|int }}%</span></div><progress class="onboarding-meter" value="{{ onboarding_done }}" max="{{ onboarding|length }}">{{ onboarding_done }}/{{ onboarding|length }}</progress><div class="onboarding-list">{% for label,complete,tab in onboarding %}<button class="{{ 'done' if complete }}" data-open-tab="{{ tab }}"><i>{{ '✓' if complete else loop.index }}</i><span>{{ label }}</span><b>→</b></button>{% endfor %}</div></div>
+      <div class="panel"><div class="panel-title"><div><p>YOUR LISTINGS</p><h2>Products on your shelves</h2></div><button data-open-tab="add">Add product</button></div>
+        {% if products %}<div class="listing-list">{% for product in products %}<article><img src="{{ url_for('main.product_image', name=product.image_name) }}" alt=""><div><strong>{{ product.name }}</strong><small>{{ product.marketplace|title }} · {{ product.department }} · {{ product.click_count }} clicks</small></div><form class="price-refresh" method="post" action="{{ url_for('promoter.refresh_product_price', product_id=product.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="number" name="price" min="0" max="1000000" step="0.01" value="{{ '%.2f'|format(product.price_cents/100) }}" aria-label="Current price for {{ product.name }}"><button title="Save price and checked date">Update price</button></form><span class="status {{ product.status }}">{{ product.status }}</span><button type="button" data-copy="{{ url_for('main.product_detail', product_id=product.id, source='shared', _external=True) }}">Copy link</button><form method="post" action="{{ url_for('promoter.product_status', product_id=product.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>{{ 'Pause' if product.status=='active' else 'Activate' }}</button></form><form method="post" action="{{ url_for('promoter.delete_product', product_id=product.id) }}" data-confirm="Delete this product permanently?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="danger">Delete</button></form></article>{% endfor %}</div>
+        {% else %}<div class="empty"><h3>Your shop is ready for its first product.</h3><button data-open-tab="add">Add first product</button></div>{% endif %}
+      </div>
+    </section>
+
+    <section data-tab-panel="add" hidden>
+      <div class="panel product-create-panel">
+        <div class="panel-title product-panel-title"><div><p>NEW LISTING</p><h2>Stock a department shelf</h2></div><span>{{ products|length }} products · no plan limit</span></div>
+        <form class="product-create-form" method="post" action="{{ url_for('promoter.add_product') }}" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="product-upload-column">
+            <label class="product-dropzone" data-image-dropzone>
+              <input class="sr-only" type="file" name="image" accept="image/jpeg,image/png,image/webp" required data-image-input>
+              <img data-image-preview alt="Selected product preview" hidden>
+              <span class="upload-placeholder" data-upload-placeholder><i>⌑<b>+</b></i><strong>Upload product picture</strong><small>JPG, PNG, or WebP · maximum 8 MB · optimized automatically</small><em>Choose image</em></span>
+              <span class="upload-change" data-upload-change hidden>Change image</span>
+            </label>
+            <p class="selected-file" data-selected-file>No image selected</p>
+          </div>
+          <div class="product-fields">
+            <label>Product name<input name="name" minlength="3" maxlength="100" placeholder="Example: 10,000mAh Power Bank" required></label>
+            <label>Affiliate link<input type="url" name="affiliate_url" placeholder="Paste your Shopee, Lazada, or TikTok Shop affiliate link" required></label>
+            <div class="field-row"><label>Department<select name="department" required><option value="" selected disabled>Choose a department</option>{% for item in departments %}<option value="{{ item }}">{{ item }}</option>{% endfor %}</select></label><label>Listed price (PHP)<input type="number" name="price" min="0" max="1000000" step="0.01" placeholder="499.00" required></label></div>
+            <label>Short description<textarea name="description" minlength="12" maxlength="500" placeholder="Explain what the product is and its important details." required></textarea></label>
+            <label>Why it’s sulit<textarea class="compact-textarea" name="why_sulit" minlength="8" maxlength="240" placeholder="Give one honest, specific reason this product is worth checking." required></textarea></label>
+            <label>Best for <span class="optional">Optional</span><input name="best_for" maxlength="160" placeholder="Example: students, dorm rooms, commuters"></label>
+            <label>Optional label<input name="badge" maxlength="32" placeholder="Example: Under ₱500"></label>
+            <p class="form-help">The marketplace is detected from the URL. Your exact affiliate parameters are preserved when a visitor opens the listing.</p>
+            <label class="rights-confirm"><input type="checkbox" name="rights_confirmed" value="yes" required><span>I confirm this is my approved affiliate link and I may use the product image.</span></label>
+            <button class="button primary publish-button" type="submit"><span>◇</span> Publish product</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section data-tab-panel="growth" hidden>
+      <div class="growth-hero panel"><div><p>SHARE &amp; GROW</p><h2>Your promoter growth kit</h2><span>Send visitors to the exact shelf or product you mentioned. SulitShelf records aggregate click sources—never visitor IP addresses.</span><div class="growth-actions"><button type="button" class="button primary" data-share-url="{{ url_for('main.public_shop', slug=current_user.shop.slug, source='shared', _external=True) }}" data-share-title="{{ current_user.shop.name }} on SulitShelf PH">Share shop</button><button type="button" class="button dark" data-copy="{{ url_for('main.public_shop', slug=current_user.shop.slug, source='shared', _external=True) }}">Copy shop link</button><a class="button dark" href="{{ url_for('main.shop_qr', slug=current_user.shop.slug) }}" download>Download QR</a></div></div><img src="{{ url_for('main.shop_qr', slug=current_user.shop.slug) }}" alt="QR code for {{ current_user.shop.name }}"></div>
+      <div class="tracked-links panel"><div class="panel-title"><div><p>TRACKED SHOP LINKS</p><h2>Know which channel sends clicks</h2></div><span>Copy the matching link for each profile or post</span></div><div>{% for source,label in [('tiktok','TikTok'),('facebook','Facebook'),('instagram','Instagram'),('youtube','YouTube'),('messenger','Messenger')] %}<article><b>{{ label[:1] }}</b><span>{{ label }}</span><button type="button" data-copy="{{ url_for('main.public_shop', slug=current_user.shop.slug, source=source, _external=True) }}">Copy tracked link</button></article>{% endfor %}</div></div>
+      <div class="growth-grid">
+        <div class="panel"><div class="panel-title"><div><p>LAST 7 DAYS</p><h2>Where clicks came from</h2></div><strong>{{ clicks_7d }} total</strong></div>{% if source_rows %}<div class="analytics-list">{% for source,total in source_rows %}<article><span>{{ source|replace('-', ' ')|title }}</span><progress value="{{ total }}" max="{{ clicks_7d }}">{{ total }}/{{ clicks_7d }}</progress><strong>{{ total }}</strong></article>{% endfor %}</div>{% else %}<div class="mini-empty">Share your tracked shop or product links to begin collecting source analytics.</div>{% endif %}</div>
+        <div class="panel"><div class="panel-title"><div><p>MARKETPLACES</p><h2>Click destination</h2></div></div>{% if marketplace_rows %}<div class="analytics-list">{% for marketplace,total in marketplace_rows %}<article><span>{{ 'TikTok Shop' if marketplace == 'tiktok' else marketplace|title }}</span><progress value="{{ total }}" max="{{ clicks_7d }}">{{ total }}/{{ clicks_7d }}</progress><strong>{{ total }}</strong></article>{% endfor %}</div>{% else %}<div class="mini-empty">Marketplace activity will appear after visitors click your products.</div>{% endif %}</div>
+      </div>
+      <div class="panel"><div class="panel-title"><div><p>TOP PRODUCTS</p><h2>Your best-performing links</h2></div></div>{% if top_products %}<div class="top-product-list">{% for product in top_products %}<article><span>#{{ loop.index }}</span><img src="{{ url_for('main.product_image', name=product.image_name) }}" alt=""><div><strong>{{ product.name }}</strong><small>{{ product.marketplace|title }} · {{ product.click_count }} all-time clicks</small></div><button type="button" data-copy="{{ url_for('main.product_detail', product_id=product.id, source='shared', _external=True) }}">Copy link</button><a href="{{ url_for('main.product_qr', product_id=product.id) }}" download>QR</a></article>{% endfor %}</div>{% else %}<div class="mini-empty">Publish your first product to unlock its share link and QR code.</div>{% endif %}</div>
+      <div class="panel content-prompts"><div class="panel-title"><div><p>CONTENT STARTERS</p><h2>Ideas for your next short video</h2></div></div><div><article><b>Problem → solution</b><p>“If your phone dies during class, this sulit power option may help.”</p></article><article><b>Budget challenge</b><p>“Three useful student finds under ₱500.”</p></article><article><b>Honest comparison</b><p>“Who should buy this—and who should skip it?”</p></article></div></div>
+    </section>
+
+    <section data-tab-panel="settings" hidden>
+      <div class="panel narrow">
+        <div class="panel-title"><div><p>PUBLIC PROFILE</p><h2>Shop settings</h2></div></div>
+        <form class="form-stack" method="post" action="{{ url_for('promoter.update_shop') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Shop name<input name="name" value="{{ current_user.shop.name }}" required></label><label>Shop URL<input name="slug" value="{{ current_user.shop.slug }}" required></label><label>Description<textarea name="bio" maxlength="240">{{ current_user.shop.bio }}</textarea></label><button class="button primary">Save settings</button></form>
+        {% set connected_providers = current_user.oauth_identities|map(attribute='provider')|list %}
+        <div class="social-settings">
+          <div><p>SECURE SIGN-IN</p><h3>Connected accounts</h3><span>Connect a provider only after signing in here. SulitShelf never stores provider access tokens.</span></div>
+          <div class="social-connection-list">
+            {% for provider in oauth_providers %}
+            <article class="{% if provider.key in connected_providers %}connected{% endif %}"><b class="provider-mark oauth-{{ provider.key }}">{{ provider.mark }}</b><div><strong>{{ provider.name }}</strong><small>{{ 'Connected' if provider.key in connected_providers else ('Ready to connect' if provider.configured else 'Administrator setup required') }}</small></div>{% if provider.key in connected_providers %}<form method="post" action="{{ url_for('auth.oauth_disconnect', provider=provider.key) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Disconnect</button></form>{% elif provider.configured %}<a href="{{ url_for('auth.oauth_start', provider=provider.key, mode='link') }}">Connect</a>{% else %}<span>Unavailable</span>{% endif %}</article>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section data-tab-panel="support" hidden>
+      <div class="billing-heading support-heading"><div><p>OPTIONAL SUPPORT</p><h2>Help keep SulitShelf free and open source</h2><span>{{ settings.donation_message }}</span></div><div class="billing-current free-access-badge"><small>YOUR ACCESS</small><strong>Free forever</strong><span>Donations never unlock or remove features</span></div></div>
+      <div class="support-principle"><span>♡</span><p><strong>Donations are completely optional.</strong> SulitShelf remains fully usable whether you donate or not. Contributions support hosting, maintenance, and future open-source development.</p></div>
+      <div class="billing-grid premium-billing-grid donation-tier-grid">
+        {% for tier in tiers %}
+        <article class="premium-plan-card donation-tier-card {% if tier.key=='supporter' %}recommended{% endif %}">
+          {% if tier.key=='supporter' %}<span class="best-value">POPULAR SUPPORT</span>{% endif %}
+          <span class="donation-heart">{{ '☕' if tier.key=='coffee' else ('♡' if tier.key=='supporter' else '✦') }}</span>
+          <p>{{ tier.name }}</p><h3>{{ php(tier.amount_cents) }}<small>one time</small></h3>
+          <strong>{{ tier.description }}</strong>
+          <ul><li><i>✓</i> Optional one-time contribution</li><li><i>✓</i> No recurring charge</li><li><i>✓</i> Same free features for everyone</li></ul>
+          <form method="post" action="{{ url_for('payments.dodo_donate', tier_key=tier.key) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="plan-button">Donate with Dodo <span>→</span></button></form>
+        </article>
+        {% endfor %}
+      </div>
+      <div class="gcash-box premium-gcash-box donation-wallet-box">
+        <div class="gcash-heading"><span class="gcash-mark">{{ settings.wallet_provider[:1]|upper }}</span><div><p>E-WALLET DONATION</p><h3>Scan the {{ settings.wallet_provider }} QR code and upload your receipt.</h3><span>Choose a suggested amount or enter your own. The reference number and receipt are required.</span></div></div>
+        {% if settings and (settings.gcash_number or settings.gcash_qr_name) %}
+        <div class="gcash-layout">
+          <div class="gcash-destination">{% if settings.gcash_qr_name %}<img src="{{ url_for('payments.wallet_qr') }}" alt="{{ settings.wallet_provider }} donation QR code">{% endif %}<small>{{ settings.wallet_provider|upper }} DONATION ACCOUNT</small><strong>{{ settings.gcash_account_name }}</strong><span>{{ settings.gcash_number }}</span></div>
+          <form class="gcash-submission-form" method="post" action="{{ url_for('payments.wallet_donate') }}" enctype="multipart/form-data" data-receipt-form data-donation-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label><span class="field-label">Donation amount <b>Required</b></span><select name="tier_key" required data-donation-tier><option value="" disabled selected>Choose an amount</option>{% for tier in tiers %}<option value="{{ tier.key }}">{{ tier.name }} — {{ php(tier.amount_cents) }}</option>{% endfor %}<option value="custom">Custom amount</option></select></label>
+            <label class="custom-donation-field" data-custom-donation hidden><span class="field-label">Custom amount <b>Required</b></span><input type="number" name="custom_amount" min="10" max="100000" step="0.01" placeholder="Amount in PHP" disabled data-custom-donation-input></label>
+            <label><span class="field-label">{{ settings.wallet_provider }} reference number <b>Required</b></span><input name="reference_number" minlength="6" maxlength="40" pattern="[A-Za-z0-9-]{6,40}" title="Use 6–40 letters, numbers, or hyphens." placeholder="Enter the reference from your receipt" autocomplete="off" required></label>
+            <div class="receipt-upload-field">
+              <span class="field-label">Donation receipt screenshot <b>Required</b></span>
+              <label class="receipt-dropzone" data-receipt-dropzone><input class="sr-only" type="file" name="receipt" accept="image/jpeg,image/png,image/webp" required data-receipt-input><img alt="Selected donation receipt preview" data-receipt-preview hidden><span data-receipt-placeholder><i>▧<b>+</b></i><strong>Upload your donation receipt</strong><small>JPG, PNG, or WebP · maximum 8 MB · optimized as readable WebP</small><em>Choose receipt</em></span><button type="button" data-receipt-change hidden>Replace receipt</button></label>
+              <p class="receipt-filename" data-receipt-filename>No receipt selected — this is required before submission.</p>
+            </div>
+            <div class="receipt-requirements"><span>✓ Amount and reference must match</span><span>✓ Receipt must be clear and readable</span></div>
+            <button class="button primary receipt-submit" type="submit"><span>♡</span> Submit donation for review</button>
+          </form>
+        </div>
+        {% else %}<p class="notice">The project owner is still configuring the donation e-wallet and QR code.</p>{% endif %}
+        {% if donations %}<div class="payment-history"><h4>Your donation history</h4>{% for donation in donations %}<article><span class="status {{ donation.status }}">{{ donation.status }}</span><strong>{{ donation.method|title }} · {{ php(donation.amount_cents) }}</strong><small>{% if donation.reference_number %}Ref {{ donation.reference_number }}{% else %}One-time Dodo checkout{% endif %}</small></article>{% endfor %}</div>{% endif %}
+      </div>
+    </section>
+  </section>
+</main>
+{% endblock %}

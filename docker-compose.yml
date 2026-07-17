@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: sulitshelf
+      POSTGRES_USER: sulitshelf
+      POSTGRES_PASSWORD: change-this-password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sulitshelf -d sulitshelf"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  web:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://sulitshelf:change-this-password@db:5432/sulitshelf
+      SESSION_COOKIE_SECURE: "false"
+    ports:
+      - "8000:8000"
+    volumes:
+      - uploads:/app/instance/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  postgres_data:
+  uploads:
