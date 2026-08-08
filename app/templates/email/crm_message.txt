@@ -1,0 +1,12 @@
+Hi {{ display_name }},
+
+{{ message_subject }}
+
+{{ message_body }}
+
+Open your private SulitShelf inbox:
+{{ inbox_url }}
+
+Need help? Contact {{ support_email }}.
+
+SulitShelf PH

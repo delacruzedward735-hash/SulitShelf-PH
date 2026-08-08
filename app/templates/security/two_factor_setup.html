@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Set up two-factor authentication · SulitShelf PH{% endblock %}
+{% block body_class %}security-page{% endblock %}
+{% block meta %}<meta name="description" content="Protect your SulitShelf PH account with an authenticator app."><meta name="robots" content="noindex,nofollow">{% endblock %}
+{% block body %}
+<main class="security-management-shell">
+  <header class="security-management-header"><a class="brand" href="{{ url_for('promoter.dashboard', tab='settings') }}"><img class="brand-icon" src="{{ url_for('static', filename='images/brand-icon.webp') }}" alt=""><strong>SulitShelf <em>PH</em></strong></a><a href="{{ url_for('auth.account_security') }}">Account security</a></header>
+  <section class="two-factor-setup-card">
+    <div class="two-factor-setup-copy"><p class="eyebrow">AUTHENTICATOR APP · STEP 1 OF 2</p><h1>Add a second lock to your account.</h1><p>Scan this QR code with Google Authenticator, Microsoft Authenticator, 1Password, Authy, or another TOTP-compatible app.</p><ol><li><b>1</b><span><strong>Scan the QR code</strong><small>Your app creates a private six-digit code.</small></span></li><li><b>2</b><span><strong>Enter the current code</strong><small>This confirms the setup worked before it is enabled.</small></span></li><li><b>3</b><span><strong>Save your recovery codes</strong><small>They are shown once after verification.</small></span></li></ol></div>
+    <div class="two-factor-setup-action"><div class="two-factor-qr-frame"><img src="{{ url_for('auth.two_factor_setup_qr') }}" alt="QR code for adding SulitShelf PH to an authenticator app"></div><div class="manual-setup-key"><span>CAN’T SCAN? ENTER THIS KEY</span><code>{{ setup_key }}</code><small>Account: {{ current_user.email }}</small></div><form class="two-factor-verify-form" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Six-digit code<input name="code" pattern="[0-9]{6}" minlength="6" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required autofocus data-two-factor-code></label><button class="button primary" type="submit">Verify and enable 2FA <b>→</b></button></form><p class="two-factor-private-note"><b>⌾</b><span>The setup secret is encrypted before storage and this page is never cached.</span></p></div>
+  </section>
+</main>
+{% endblock %}

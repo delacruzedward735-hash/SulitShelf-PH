@@ -1,2 +1,2 @@
-web: gunicorn --workers 2 --threads 4 --bind 0.0.0.0:$PORT run:app
-release: flask --app run.py db upgrade
+web: gunicorn -c gunicorn.conf.py run:app
+release: python -m flask --app run.py deploy-release

@@ -53,7 +53,7 @@ def _optimize_webp(data, directory):
         raise
     except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError, Image.DecompressionBombWarning):
         raise UploadError("Only valid JPG, PNG, and WebP images are accepted.") from None
-    if not optimized or len(optimized) > current_app.config["MAX_CONTENT_LENGTH"]:
+    if not optimized or len(optimized) > current_app.config["IMAGE_UPLOAD_MAX_BYTES"]:
         raise UploadError("The optimized image is still too large. Choose a smaller image.")
     return optimized
 
@@ -113,8 +113,9 @@ def _decode_cloudinary_key(name):
 def save_image(file, directory, prefix, private=False):
     if not file or not file.filename:
         raise UploadError("Choose an image to upload.")
-    data = file.read(current_app.config["MAX_CONTENT_LENGTH"] + 1)
-    if not data or len(data) > current_app.config["MAX_CONTENT_LENGTH"]:
+    upload_limit = current_app.config["IMAGE_UPLOAD_MAX_BYTES"]
+    data = file.read(upload_limit + 1)
+    if not data or len(data) > upload_limit:
         raise UploadError("Upload an image up to 8 MB.")
     optimized = _optimize_webp(data, directory)
     token = secrets.token_hex(16)
@@ -138,6 +139,7 @@ def save_image(file, directory, prefix, private=False):
             overwrite=False,
             unique_filename=False,
             use_filename=False,
+            timeout=current_app.config["CLOUDINARY_UPLOAD_TIMEOUT_SECONDS"],
         )
         public_id = result.get("public_id", "")
         if not public_id:
@@ -182,7 +184,13 @@ def delete_file(directory, name):
         delivery_type, _image_format, public_id = parsed
         try:
             _configure_cloudinary()
-            cloudinary.uploader.destroy(public_id, resource_type="image", type=delivery_type, invalidate=True)
+            cloudinary.uploader.destroy(
+                public_id,
+                resource_type="image",
+                type=delivery_type,
+                invalidate=True,
+                timeout=current_app.config["CLOUDINARY_UPLOAD_TIMEOUT_SECONDS"],
+            )
         except (CloudinaryError, UploadError):
             current_app.logger.exception("Cloudinary image deletion failed for %s", directory)
         return

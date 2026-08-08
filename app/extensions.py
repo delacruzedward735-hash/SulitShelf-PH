@@ -11,6 +11,9 @@ oauth = OAuth()
 login_manager = LoginManager()
 login_manager.login_view = "auth.login"
 login_manager.login_message_category = "info"
+login_manager.refresh_view = "auth.reauthenticate"
+login_manager.needs_refresh_message = "Confirm your identity before changing account security settings."
+login_manager.needs_refresh_message_category = "info"
 migrate = Migrate()
 csrf = CSRFProtect()
 limiter = Limiter(key_func=get_remote_address, default_limits=["300 per hour"])

@@ -22,8 +22,33 @@ class User(UserMixin, TimestampMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="promoter")
     is_active_account = db.Column(db.Boolean, nullable=False, default=True)
+    session_version = db.Column(db.Integer, nullable=False, default=1)
+    two_factor_secret_ciphertext = db.Column(db.String(512))
+    two_factor_enabled_at = db.Column(db.DateTime(timezone=True))
+    two_factor_last_counter = db.Column(db.BigInteger)
     shop = db.relationship("Shop", back_populates="owner", uselist=False, cascade="all, delete-orphan")
     oauth_identities = db.relationship("OAuthIdentity", back_populates="user", cascade="all, delete-orphan")
+    password_reset_tokens = db.relationship(
+        "PasswordResetToken",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    two_factor_recovery_codes = db.relationship(
+        "TwoFactorRecoveryCode",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    received_crm_messages = db.relationship(
+        "CRMMessage",
+        foreign_keys="CRMMessage.recipient_id",
+        back_populates="recipient",
+        cascade="all, delete-orphan",
+    )
+    sent_crm_messages = db.relationship(
+        "CRMMessage",
+        foreign_keys="CRMMessage.sender_id",
+        back_populates="sender",
+    )
 
     @property
     def is_active(self):
@@ -32,6 +57,9 @@ class User(UserMixin, TimestampMixin, db.Model):
     @property
     def is_admin(self):
         return self.role == "admin"
+
+    def get_id(self):
+        return f"{self.id}:{self.session_version}"
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password, method="scrypt")
@@ -45,6 +73,57 @@ class User(UserMixin, TimestampMixin, db.Model):
 
     def check_password(self, password):
         return self.has_usable_password and check_password_hash(self.password_hash, password)
+
+    @property
+    def two_factor_enabled(self):
+        return bool(self.two_factor_enabled_at and self.two_factor_secret_ciphertext)
+
+
+class CRMMessage(db.Model):
+    """An administrator message delivered to a promoter's private inbox."""
+
+    __tablename__ = "crm_message"
+
+    id = db.Column(db.Integer, primary_key=True)
+    recipient_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), index=True)
+    sender_email = db.Column(db.String(254), nullable=False)
+    subject = db.Column(db.String(120), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    email_requested = db.Column(db.Boolean, nullable=False, default=False)
+    email_status = db.Column(db.String(20), nullable=False, default="not_requested", index=True)
+    email_provider = db.Column(db.String(20))
+    read_at = db.Column(db.DateTime(timezone=True), index=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False, index=True)
+    recipient = db.relationship("User", foreign_keys=[recipient_id], back_populates="received_crm_messages")
+    sender = db.relationship("User", foreign_keys=[sender_id], back_populates="sent_crm_messages")
+
+
+class PasswordResetToken(db.Model):
+    """A one-time password reset grant. Only the SHA-256 token digest is stored."""
+
+    __tablename__ = "password_reset_token"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    used_at = db.Column(db.DateTime(timezone=True))
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+    user = db.relationship("User", back_populates="password_reset_tokens")
+
+
+class TwoFactorRecoveryCode(db.Model):
+    """A one-time 2FA recovery code stored only as a keyed digest."""
+
+    __tablename__ = "two_factor_recovery_code"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    code_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    used_at = db.Column(db.DateTime(timezone=True), index=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+    user = db.relationship("User", back_populates="two_factor_recovery_codes")
 
 
 class OAuthIdentity(TimestampMixin, db.Model):
@@ -74,17 +153,32 @@ class Shop(TimestampMixin, db.Model):
     subscription_status = db.Column(db.String(30), nullable=False, default="free")
     subscription_source = db.Column(db.String(30))
     subscription_external_id = db.Column(db.String(160))
+    subscription_customer_id = db.Column(db.String(160), index=True)
+    subscription_product_id = db.Column(db.String(120))
+    subscription_price_cents = db.Column(db.Integer)
+    subscription_event_at = db.Column(db.DateTime(timezone=True))
     subscription_ends_at = db.Column(db.DateTime(timezone=True), nullable=False)
     is_verified = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    branding_theme = db.Column(db.String(20), nullable=False, default="orange")
+    branding_tagline = db.Column(db.String(120), nullable=False, default="")
+    branding_logo_name = db.Column(db.String(160))
+    branding_banner_name = db.Column(db.String(160))
+    hide_platform_branding = db.Column(db.Boolean, nullable=False, default=False)
     owner = db.relationship("User", back_populates="shop")
     products = db.relationship("Product", back_populates="shop", cascade="all, delete-orphan")
     click_events = db.relationship("ClickEvent", back_populates="shop", cascade="all, delete-orphan")
     payment_submissions = db.relationship("PaymentSubmission", back_populates="shop", cascade="all, delete-orphan")
     donations = db.relationship("Donation", back_populates="shop", cascade="all, delete-orphan")
+    metric_hours = db.relationship("ProductMetricHourly", back_populates="shop", cascade="all, delete-orphan")
+    commission_imports = db.relationship("CommissionImport", back_populates="shop", cascade="all, delete-orphan")
+    commission_entries = db.relationship("CommissionEntry", back_populates="shop", cascade="all, delete-orphan")
+    __table_args__ = (
+        db.Index("ix_shop_subscription_expiry", "plan_key", "subscription_status", "subscription_ends_at"),
+    )
 
 
 class Plan(TimestampMixin, db.Model):
-    """Legacy subscription configuration kept for migration compatibility."""
+    """Hosted-service access plans. A product_limit of zero means unlimited."""
     key = db.Column(db.String(20), primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     price_cents = db.Column(db.Integer, nullable=False)
@@ -111,10 +205,83 @@ class Product(TimestampMixin, db.Model):
     best_for = db.Column(db.String(160), nullable=False, default="")
     price_checked_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
     is_sponsored = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    health_status = db.Column(db.String(24), nullable=False, default="unchecked", index=True)
+    health_checked_at = db.Column(db.DateTime(timezone=True))
+    health_note = db.Column(db.String(240), nullable=False, default="")
     shop = db.relationship("Shop", back_populates="products")
     click_events = db.relationship("ClickEvent", back_populates="product", cascade="all, delete-orphan")
     campaign_links = db.relationship("CampaignProduct", back_populates="product", cascade="all, delete-orphan")
     reports = db.relationship("ProductReport", back_populates="product", cascade="all, delete-orphan")
+    metric_hours = db.relationship("ProductMetricHourly", back_populates="product", cascade="all, delete-orphan")
+    commission_entries = db.relationship("CommissionEntry", back_populates="product")
+
+
+class ProductMetricHourly(db.Model):
+    """Privacy-friendly hourly aggregates; no visitor identifier, IP, or raw user agent."""
+
+    __tablename__ = "product_metric_hourly"
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="CASCADE"), nullable=False, index=True)
+    shop_id = db.Column(db.Integer, db.ForeignKey("shop.id", ondelete="CASCADE"), nullable=False, index=True)
+    period_start = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    source = db.Column(db.String(24), nullable=False, default="direct")
+    device = db.Column(db.String(12), nullable=False, default="desktop")
+    impressions = db.Column(db.Integer, nullable=False, default=0)
+    clicks = db.Column(db.Integer, nullable=False, default=0)
+    product = db.relationship("Product", back_populates="metric_hours")
+    shop = db.relationship("Shop", back_populates="metric_hours")
+    __table_args__ = (
+        db.UniqueConstraint(
+            "product_id", "period_start", "source", "device",
+            name="uq_product_metric_hourly_bucket",
+        ),
+    )
+
+
+class CommissionImport(db.Model):
+    __tablename__ = "commission_import"
+
+    id = db.Column(db.Integer, primary_key=True)
+    shop_id = db.Column(db.Integer, db.ForeignKey("shop.id", ondelete="CASCADE"), nullable=False, index=True)
+    marketplace = db.Column(db.String(20), nullable=False, index=True)
+    original_filename = db.Column(db.String(160), nullable=False)
+    content_hash = db.Column(db.String(64), nullable=False)
+    row_count = db.Column(db.Integer, nullable=False, default=0)
+    skipped_count = db.Column(db.Integer, nullable=False, default=0)
+    total_order_value_cents = db.Column(db.BigInteger, nullable=False, default=0)
+    total_commission_cents = db.Column(db.BigInteger, nullable=False, default=0)
+    period_start = db.Column(db.Date)
+    period_end = db.Column(db.Date)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False, index=True)
+    shop = db.relationship("Shop", back_populates="commission_imports")
+    entries = db.relationship("CommissionEntry", back_populates="commission_import", cascade="all, delete-orphan")
+    __table_args__ = (
+        db.UniqueConstraint("shop_id", "marketplace", "content_hash", name="uq_commission_import_file"),
+    )
+
+
+class CommissionEntry(db.Model):
+    __tablename__ = "commission_entry"
+
+    id = db.Column(db.Integer, primary_key=True)
+    import_id = db.Column(db.Integer, db.ForeignKey("commission_import.id", ondelete="CASCADE"), nullable=False, index=True)
+    shop_id = db.Column(db.Integer, db.ForeignKey("shop.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="SET NULL"), index=True)
+    marketplace = db.Column(db.String(20), nullable=False, index=True)
+    row_hash = db.Column(db.String(64), nullable=False)
+    occurred_on = db.Column(db.Date, nullable=False, index=True)
+    product_name = db.Column(db.String(160), nullable=False)
+    order_value_cents = db.Column(db.BigInteger, nullable=False, default=0)
+    commission_cents = db.Column(db.BigInteger, nullable=False)
+    status = db.Column(db.String(40), nullable=False, default="approved", index=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+    commission_import = db.relationship("CommissionImport", back_populates="entries")
+    shop = db.relationship("Shop", back_populates="commission_entries")
+    product = db.relationship("Product", back_populates="commission_entries")
+    __table_args__ = (
+        db.UniqueConstraint("shop_id", "row_hash", name="uq_commission_entry_shop_row"),
+    )
 
 
 class ClickEvent(db.Model):
@@ -147,7 +314,17 @@ class Campaign(TimestampMixin, db.Model):
 
     @property
     def products(self):
-        return [link.product for link in self.product_links if link.product and link.product.status == "active"]
+        return [
+            link.product
+            for link in self.product_links
+            if (
+                link.product
+                and link.product.status == "active"
+                and link.product.shop
+                and link.product.shop.owner
+                and link.product.shop.owner.is_active_account
+            )
+        ]
 
 
 class CampaignProduct(db.Model):
@@ -222,6 +399,14 @@ class PaymentSubmission(db.Model):
     reviewed_by = db.Column(db.String(254))
     review_note = db.Column(db.String(300))
     shop = db.relationship("Shop", back_populates="payment_submissions")
+
+
+class WalletReference(db.Model):
+    """One e-wallet transaction reference may fund only one action."""
+    id = db.Column(db.Integer, primary_key=True)
+    reference = db.Column(db.String(40), unique=True, nullable=False, index=True)
+    purpose = db.Column(db.String(30), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
 
 
 class WebhookEvent(db.Model):

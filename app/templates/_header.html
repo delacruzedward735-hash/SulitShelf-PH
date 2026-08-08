@@ -1,8 +1,9 @@
 <div class="market-ribbon"><span>Shopee</span><span>Lazada</span><span>TikTok Shop</span><small>Independent affiliate shops, together in one mall.</small></div>
 <header class="site-header">
-  <a class="brand" href="{{ url_for('main.home') }}"><i>▣</i><strong>SulitShelf <em>PH</em></strong></a>
+  <a class="brand" href="{{ url_for('main.home') }}"><img class="brand-icon" src="{{ url_for('static', filename='images/brand-icon.webp') }}" alt=""><strong>SulitShelf <em>PH</em></strong></a>
   <nav><a href="{{ url_for('main.home') }}#campaigns">Collections</a><a href="{{ url_for('main.home') }}#departments">Departments</a><a href="{{ url_for('main.home') }}#products">Products</a><a href="{{ url_for('main.promoter_services') }}">Promoter help</a></nav>
   <div class="header-actions">
+    <a class="saved-header-link" href="{{ url_for('main.saved_products') }}">Saved <b data-saved-count>0</b></a>
     {% if current_user.is_authenticated %}
       {% if current_user.is_admin %}<a href="{{ url_for('admin.dashboard') }}">Admin CMS</a>{% endif %}
       <a class="button dark" href="{{ url_for('promoter.dashboard') }}">My studio</a>

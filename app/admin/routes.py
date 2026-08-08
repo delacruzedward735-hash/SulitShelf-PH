@@ -2,16 +2,21 @@ import json
 import re
 from decimal import Decimal, InvalidOperation
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import selectinload
 
 from app.extensions import db
 from app.models import (
     AuditLog,
     Campaign,
     CampaignProduct,
+    CRMMessage,
     Donation,
     DonationTier,
+    PaymentSubmission,
+    Plan,
     PlatformSettings,
     Product,
     ProductReport,
@@ -20,8 +25,9 @@ from app.models import (
     utcnow,
 )
 from app.services.authz import admin_required
-from app.services.billing import ensure_defaults
+from app.services.billing import active_subscription, grant_manual_pro
 from app.services.catalog import slugify
+from app.services.email import EmailDeliveryError, send_crm_message_email
 from app.services.storage import UploadError, delete_file, media_url, path_for, save_image
 
 bp = Blueprint("admin", __name__)
@@ -34,33 +40,275 @@ def audit(action, target_type, target_id, details=None):
 @bp.get("/")
 @admin_required
 def dashboard():
-    ensure_defaults()
     tiers = list(db.session.scalars(db.select(DonationTier).order_by(DonationTier.amount_cents)))
-    donations = list(db.session.scalars(db.select(Donation).order_by(Donation.submitted_at.desc()).limit(250)))
-    promoters = list(db.session.scalars(db.select(User).where(User.role.in_(["promoter", "admin"])).order_by(User.created_at.desc()).limit(250)))
-    campaigns = list(db.session.scalars(db.select(Campaign).order_by(Campaign.sort_order, Campaign.created_at)))
-    products = list(db.session.scalars(db.select(Product).order_by(Product.created_at.desc()).limit(250)))
-    reports = list(db.session.scalars(db.select(ProductReport).order_by(ProductReport.created_at.desc()).limit(250)))
+    donations = list(
+        db.session.scalars(
+            db.select(Donation)
+            .options(selectinload(Donation.shop).selectinload(Shop.owner))
+            .order_by(Donation.submitted_at.desc())
+            .limit(250)
+        )
+    )
+    subscription_payments = list(
+        db.session.scalars(
+            db.select(PaymentSubmission)
+            .options(selectinload(PaymentSubmission.shop).selectinload(Shop.owner))
+            .order_by(PaymentSubmission.submitted_at.desc())
+            .limit(250)
+        )
+    )
+    pro_plan = db.session.get(Plan, "pro")
+    active_pro_shop_ids = set(
+        db.session.scalars(
+            db.select(Shop.id).where(
+                Shop.plan_key == "pro",
+                Shop.subscription_status == "active",
+                Shop.subscription_ends_at > utcnow(),
+            )
+        )
+    )
+    promoters = list(
+        db.session.scalars(
+            db.select(User)
+            .options(selectinload(User.shop).selectinload(Shop.products))
+            .where(User.role.in_(["promoter", "admin"]))
+            .order_by(User.created_at.desc())
+            .limit(250)
+        )
+    )
+    campaigns = list(
+        db.session.scalars(
+            db.select(Campaign)
+            .options(selectinload(Campaign.product_links))
+            .order_by(Campaign.sort_order, Campaign.created_at)
+        )
+    )
+    products = list(
+        db.session.scalars(
+            db.select(Product)
+            .options(selectinload(Product.shop))
+            .order_by(Product.created_at.desc())
+            .limit(250)
+        )
+    )
+    reports = list(
+        db.session.scalars(
+            db.select(ProductReport)
+            .options(selectinload(ProductReport.product).selectinload(Product.shop))
+            .order_by(ProductReport.created_at.desc())
+            .limit(250)
+        )
+    )
+    crm_messages = list(
+        db.session.scalars(
+            db.select(CRMMessage)
+            .options(selectinload(CRMMessage.recipient))
+            .order_by(CRMMessage.created_at.desc())
+            .limit(100)
+        )
+    )
     settings = db.session.get(PlatformSettings, 1)
     stats = {
         "promoters": db.session.scalar(db.select(db.func.count(User.id))) or 0,
         "listings": db.session.scalar(db.select(db.func.count(Product.id))) or 0,
         "clicks": db.session.scalar(db.select(db.func.coalesce(db.func.sum(Product.click_count), 0))) or 0,
         "pending": db.session.scalar(db.select(db.func.count(Donation.id)).where(Donation.status == "pending")) or 0,
+        "pending_subscriptions": db.session.scalar(db.select(db.func.count(PaymentSubmission.id)).where(PaymentSubmission.status == "pending")) or 0,
+        "pro_shops": db.session.scalar(db.select(db.func.count(Shop.id)).where(Shop.plan_key == "pro", Shop.subscription_status == "active", Shop.subscription_ends_at > utcnow())) or 0,
+        "manual_subscription_cents": db.session.scalar(db.select(db.func.coalesce(db.func.sum(PaymentSubmission.amount_cents), 0)).where(PaymentSubmission.status == "approved")) or 0,
         "donated_cents": db.session.scalar(db.select(db.func.coalesce(db.func.sum(Donation.amount_cents), 0)).where(Donation.status.in_(["approved", "completed"]))) or 0,
         "reports": db.session.scalar(db.select(db.func.count(ProductReport.id)).where(ProductReport.status == "pending")) or 0,
+        "crm_messages": db.session.scalar(db.select(db.func.count(CRMMessage.id))) or 0,
+        "crm_unread": db.session.scalar(db.select(db.func.count(CRMMessage.id)).where(CRMMessage.read_at.is_(None))) or 0,
     }
     return render_template(
         "admin.html",
         tiers=tiers,
         donations=donations,
+        subscription_payments=subscription_payments,
+        pro_plan=pro_plan,
+        active_pro_shop_ids=active_pro_shop_ids,
         promoters=promoters,
         campaigns=campaigns,
         products=products,
         reports=reports,
+        crm_messages=crm_messages,
         settings=settings,
         stats=stats,
     )
+
+
+@bp.post("/crm/messages")
+@admin_required
+def send_crm_message():
+    recipient_value = request.form.get("recipient", "").strip()
+    subject = request.form.get("subject", "").strip()
+    body = request.form.get("body", "").strip()
+    requested_email_copy = request.form.get("send_email") == "yes"
+    email_requested = requested_email_copy and recipient_value != "all"
+    if not 3 <= len(subject) <= 120 or not 5 <= len(body) <= 4000:
+        flash("Enter a subject and a message between 5 and 4,000 characters.", "error")
+        return redirect(url_for("admin.dashboard", tab="crm", recipient=recipient_value))
+
+    if recipient_value == "all":
+        recipients = list(
+            db.session.scalars(
+                db.select(User)
+                .where(User.role == "promoter", User.is_active_account.is_(True))
+                .order_by(User.id)
+                .limit(500)
+            )
+        )
+    elif recipient_value.isdigit():
+        recipient = db.session.scalar(
+            db.select(User).where(
+                User.id == int(recipient_value),
+                User.role.in_(["promoter", "admin"]),
+                User.is_active_account.is_(True),
+            )
+        )
+        recipients = [recipient] if recipient else []
+    else:
+        recipients = []
+    if not recipients:
+        flash("Choose an active promoter account.", "error")
+        return redirect(url_for("admin.dashboard", tab="crm"))
+
+    messages = []
+    for recipient in recipients:
+        message = CRMMessage(
+            recipient=recipient,
+            sender=current_user,
+            sender_email=current_user.email,
+            subject=subject,
+            body=body,
+            email_requested=email_requested,
+            email_status="pending" if email_requested else "not_requested",
+        )
+        db.session.add(message)
+        messages.append(message)
+    audit(
+        "crm.broadcast_sent" if recipient_value == "all" else "crm.message_sent",
+        "crm_message",
+        "broadcast" if recipient_value == "all" else recipients[0].id,
+        {"recipient_count": len(recipients), "email_requested": email_requested},
+    )
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        current_app.logger.exception("CRM in-app message database write failed")
+        flash("The message could not be saved. Please try again.", "error")
+        return redirect(url_for("admin.dashboard", tab="crm"))
+
+    email_sent = 0
+    if email_requested:
+        inbox_url = url_for("promoter.dashboard", tab="inbox", _external=True)
+        for message in messages:
+            try:
+                message.email_provider = send_crm_message_email(message, inbox_url)
+                message.email_status = "sent"
+                email_sent += 1
+            except EmailDeliveryError:
+                message.email_status = "failed"
+                current_app.logger.warning("CRM email delivery failed message_id=%s", message.id)
+        try:
+            db.session.commit()
+        except SQLAlchemyError:
+            db.session.rollback()
+            current_app.logger.exception("CRM email delivery status update failed")
+
+    summary = f"Message delivered to {len(messages)} promoter{'s' if len(messages) != 1 else ''}."
+    if email_requested:
+        summary += f" Email accepted for {email_sent} of {len(messages)}."
+    elif requested_email_copy:
+        summary += " Broadcast email copies are disabled; every recipient received the in-app announcement."
+    flash(summary, "success")
+    return redirect(url_for("admin.dashboard", tab="crm"))
+
+
+@bp.post("/plans/pro")
+@admin_required
+def update_pro_plan():
+    plan = db.session.get(Plan, "pro")
+    if not plan:
+        abort(404)
+    try:
+        amount = Decimal(request.form.get("amount", "0"))
+        if amount.as_tuple().exponent < -2:
+            raise ValueError
+        amount_cents = int(amount * 100)
+        dodo_product_id = request.form.get("dodo_product_id", "").strip()
+        if (
+            not 100 <= amount_cents <= 1_000_000
+            or len(dodo_product_id) > 120
+            or (dodo_product_id and not re.fullmatch(r"[A-Za-z0-9_-]+", dodo_product_id))
+        ):
+            raise ValueError
+    except (InvalidOperation, ValueError):
+        flash("Enter a valid monthly price and Dodo recurring product ID.", "error")
+        return redirect(url_for("admin.dashboard", tab="subscriptions"))
+    plan.price_cents = amount_cents
+    plan.product_limit = 0
+    plan.dodo_product_id = dodo_product_id or None
+    plan.is_active = request.form.get("is_active") == "yes"
+    plan.updated_by = current_user.email
+    audit("plan.pro_updated", "plan", "pro", {"price_cents": amount_cents, "dodo_product_id": bool(dodo_product_id), "active": plan.is_active})
+    db.session.commit()
+    flash("Pro billing settings updated. Existing Dodo subscriptions keep their original verified price.", "success")
+    return redirect(url_for("admin.dashboard", tab="subscriptions"))
+
+
+@bp.post("/subscriptions/<int:submission_id>/<decision>")
+@admin_required
+def review_subscription_payment(submission_id, decision):
+    if decision not in {"approved", "rejected"}:
+        abort(400)
+    submission = db.session.scalar(
+        db.select(PaymentSubmission).where(PaymentSubmission.id == submission_id).with_for_update()
+    )
+    if not submission:
+        abort(404)
+    if submission.status != "pending" or submission.plan_key != "pro":
+        flash("That Pro payment was already processed or is invalid.", "error")
+        return redirect(url_for("admin.dashboard", tab="subscription-payments"))
+    if decision == "approved" and active_subscription(submission.shop) and submission.shop.subscription_source == "dodo":
+        flash("This shop already has automatic Dodo billing. Reject or investigate the manual submission instead.", "error")
+        return redirect(url_for("admin.dashboard", tab="subscription-payments"))
+
+    submission.status = decision
+    submission.reviewed_at = utcnow()
+    submission.reviewed_by = current_user.email
+    submission.review_note = request.form.get("note", "").strip()[:300] or None
+    period_end = None
+    if decision == "approved":
+        period_end = grant_manual_pro(submission.shop, submission.amount_cents)
+    audit(
+        f"subscription_payment.{decision}",
+        "payment_submission",
+        submission.id,
+        {"shop_id": submission.shop_id, "amount_cents": submission.amount_cents, "period_end": period_end.isoformat() if period_end else None},
+    )
+    db.session.commit()
+    flash("Pro access activated for 30 days." if decision == "approved" else "Pro payment submission rejected.", "success")
+    return redirect(url_for("admin.dashboard", tab="subscription-payments"))
+
+
+@bp.get("/subscriptions/<int:submission_id>/receipt")
+@admin_required
+def subscription_receipt(submission_id):
+    submission = db.session.get(PaymentSubmission, submission_id)
+    remote_url = media_url(submission.receipt_name if submission else "", private=True)
+    if remote_url:
+        response = redirect(remote_url, code=302)
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
+    path = path_for("receipts", submission.receipt_name if submission else "")
+    if not path:
+        abort(404)
+    response = send_file(path, conditional=True, max_age=0)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 def _campaign_product_ids(raw):
@@ -255,7 +503,14 @@ def update_donation_settings():
         settings.gcash_qr_name = new_qr
     settings.updated_by = current_user.email
     audit("donation_wallet.updated", "settings", 1, {"provider": provider, "account_configured": bool(number), "qr_updated": bool(new_qr)})
-    db.session.commit()
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        delete_file("settings", new_qr)
+        current_app.logger.exception("E-wallet settings database write failed")
+        flash("The e-wallet settings could not be saved. Please try again.", "error")
+        return redirect(url_for("admin.dashboard", tab="wallet"))
     if new_qr:
         delete_file("settings", old_qr)
     flash("Donation e-wallet settings updated.", "success")
@@ -307,6 +562,7 @@ def toggle_user(user_id):
     if not user or user.id == current_user.id:
         abort(400)
     user.is_active_account = not user.is_active_account
+    user.session_version += 1
     audit("user.toggled", "user", user.id, {"active": user.is_active_account})
     db.session.commit()
     flash("Promoter account status updated.", "success")

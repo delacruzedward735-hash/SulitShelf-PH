@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Saved products · SulitShelf PH{% endblock %}
+{% block meta %}<meta name="robots" content="noindex"><link rel="canonical" href="{{ url_for('main.saved_products', _external=True) }}">{% endblock %}
+{% block body %}
+{% include "_header.html" %}
+<main class="saved-page" data-saved-page data-products-api="{{ url_for('main.product_api') }}">
+  <section class="saved-hero"><p class="eyebrow">YOUR BROWSER, YOUR LIST</p><h1>Saved and recently viewed.</h1><p>These lists stay in this browser. SulitShelf does not require a shopper account or store a visitor identifier.</p></section>
+  <section class="section"><div class="section-title"><div><p class="eyebrow">WISHLIST</p><h2>Saved products</h2></div><button class="button dark" type="button" data-clear-saved>Clear saved</button></div><div class="saved-product-grid" data-saved-products><div class="empty"><h3>No saved products yet.</h3><p>Tap “Save” on a product card to keep it here.</p></div></div></section>
+  <section class="section recent-section"><div class="section-title"><div><p class="eyebrow">RECENTLY VIEWED</p><h2>Pick up where you left off</h2></div></div><div class="saved-product-grid" data-recent-products><div class="empty"><h3>No recently viewed products yet.</h3></div></div></section>
+</main>
+{% endblock %}

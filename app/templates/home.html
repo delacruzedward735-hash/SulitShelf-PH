@@ -1,4 +1,33 @@
 {% extends "base.html" %}
+{% block title %}SulitShelf PH · Filipino affiliate finds{% endblock %}
+{% block meta %}
+<meta name="description" content="Browse useful finds from independent Filipino promoters across Shopee, Lazada, and TikTok Shop.">
+{% if query or selected_department or selected_marketplace %}<meta name="robots" content="noindex,follow">{% endif %}
+<meta property="og:title" content="SulitShelf PH · One colorful affiliate mall">
+<meta property="og:description" content="Discover independent Filipino affiliate shelves without creating a shopper account.">
+<meta property="og:type" content="website">
+<link rel="canonical" href="{{ url_for('main.home', _external=True) }}">
+{% set website_schema = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': url_for('main.home', _external=True) ~ '#organization',
+      'name': 'SulitShelf PH',
+      'url': url_for('main.home', _external=True),
+      'logo': url_for('static', filename='images/app-icon-512.png', _external=True)
+    },
+    {
+      '@type': 'WebSite',
+      '@id': url_for('main.home', _external=True) ~ '#website',
+      'name': 'SulitShelf PH',
+      'url': url_for('main.home', _external=True),
+      'publisher': {'@id': url_for('main.home', _external=True) ~ '#organization'}
+    }
+  ]
+} %}
+<script type="application/ld+json" nonce="{{ g.csp_nonce }}">{{ website_schema|tojson }}</script>
+{% endblock %}
 {% block body %}
 {% include "_header.html" %}
 <main>
@@ -11,7 +40,7 @@
       <ul><li>✓ Curated collections</li><li>✓ Direct marketplace links</li><li>✓ Real click signals</li></ul>
     </div>
     <div class="mall-card">
-      <div class="mall-sign">▣ SULITSHELF MALL <b>OPEN</b></div>
+      <div class="mall-sign"><img src="{{ url_for('static', filename='images/brand-icon.webp') }}" alt=""> SULITSHELF MALL <b>OPEN</b></div>
       <article class="shopee"><span>01</span><div><strong>Shopee</strong><small>Orange-tag finds</small></div>→</article>
       <article class="lazada"><span>02</span><div><strong>Lazada</strong><small>Colorful everyday deals</small></div>→</article>
       <article class="tiktok"><span>03</span><div><strong>TikTok Shop</strong><small>Creator-led discoveries</small></div>→</article>
@@ -52,10 +81,10 @@
       <select name="marketplace" aria-label="Marketplace"><option value="">All marketplaces</option>{% for value,label in [('shopee','Shopee'),('lazada','Lazada'),('tiktok','TikTok Shop')] %}<option value="{{ value }}" {% if selected_marketplace == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
       <button>Filter</button>
     </form>
-    {% if products %}<div class="product-grid">{% for product in products %}{% set card_source='mall' %}{% include "_product_card.html" %}{% endfor %}</div>{% else %}<div class="empty"><b>▣</b><h3>No products match this shelf yet.</h3><p>Try another search or department.</p></div>{% endif %}
+    {% if products %}<div class="product-grid">{% for product in products %}{% set card_source=home_source %}{% include "_product_card.html" %}{% endfor %}</div>{% else %}<div class="empty"><b>▣</b><h3>No products match this shelf yet.</h3><p>Try another search or department.</p></div>{% endif %}
   </section>
 
-  <section class="plans-section open-source-section" id="plans"><div><p class="eyebrow">FREE &amp; OPEN SOURCE</p><h2>Your links.<br>Your shop.<br><span>No subscription.</span></h2><p>Create a personal storefront, publish approved affiliate products, and track outbound clicks for free.</p><a class="button primary" href="{{ url_for('auth.register') }}">Open a free shelf</a></div><div class="plan-grid open-source-grid"><article><p>Free forever</p><h3>₱0<small>/month</small></h3><strong>No paid feature gates</strong><ul><li>✓ Public affiliate shop</li><li>✓ Product click analytics</li><li>✓ All supported marketplaces</li></ul></article><article><p>Creator growth kit</p><h3>Share<small>everywhere</small></h3><strong>Links, QR codes, and campaign pages</strong><ul><li>✓ Shop and product QR codes</li><li>✓ Traffic-source analytics</li><li>✓ Mobile sharing tools</li></ul></article><article><p>Optional support</p><h3>Donate<small>once</small></h3><strong>Never required for access</strong><ul><li>✓ Dodo one-time donation</li><li>✓ GCash, Maya, or e-wallet QR</li><li>✓ No recurring charges</li></ul></article></div></section>
+  <section class="plans-section" id="plans"><div><p class="eyebrow">START FREE, GROW CHEAP</p><h2>Your links.<br>Your shop.<br><span>Just ₱49 to grow smarter.</span></h2><p>Launch a full affiliate storefront free with 50 products. Upgrade for serious growth tools—no trial countdown and no surprise feature lock.</p><a class="button primary" href="{{ url_for('auth.register') }}">Open a free shelf</a></div><div class="plan-grid"><article><p>Free</p><h3>₱0<small>forever</small></h3><strong>50 products, no trial</strong><ul><li>✓ Public affiliate shop</li><li>✓ Basic clicks, health and QR sharing</li><li>✓ Shopee, Lazada &amp; TikTok Shop</li></ul><a href="{{ url_for('auth.register') }}">Start free →</a></article><article class="landing-pro-card"><p>Pro</p><h3>{{ php(pro_plan.price_cents if pro_plan else 4900) }}<small>/month</small></h3><strong>Unlimited products plus the Growth Center</strong><ul><li>✓ Bulk and commission CSV imports</li><li>✓ Views, CTR and device analytics</li><li>✓ Logo, banner and shop themes</li></ul><a href="{{ url_for('auth.register') }}">Build your shelf →</a></article><article><p>Open-source project</p><h3>MIT<small>licensed</small></h3><strong>Self-host it or support development</strong><ul><li>✓ Source available to customize</li><li>✓ Optional one-time donations</li><li>✓ Donations never activate Pro</li></ul><a href="{{ url_for('auth.register') }}">Join SulitShelf →</a></article></div></section>
   <section class="disclosure"><b>ⓘ</b><p><strong>Affiliate disclosure.</strong> Product links may earn independent promoters a commission at no additional cost to shoppers. SulitShelf PH does not process marketplace product payments, deliveries, or returns.</p></section>
 </main>
 <footer><strong>SulitShelf PH</strong><span>One mall. Many affiliate shops.</span><small>Shopee, Lazada, and TikTok Shop are trademarks of their respective owners.</small></footer>

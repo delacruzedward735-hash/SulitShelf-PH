@@ -4,12 +4,33 @@
 <meta name="description" content="{{ product.why_sulit or product.description }}">
 <meta property="og:title" content="{{ product.name }}">
 <meta property="og:description" content="{{ product.why_sulit or product.description }}">
-<meta property="og:image" content="{{ url_for('main.product_image', name=product.image_name, _external=True) }}">
+<meta property="og:type" content="product">
 <link rel="canonical" href="{{ url_for('main.product_detail', product_id=product.id, _external=True) }}">
+{% set product_schema = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  'name': product.name,
+  'description': product.why_sulit or product.description,
+  'image': [url_for('main.product_image', name=product.image_name, _external=True)],
+  'category': product.department,
+  'offers': {
+    '@type': 'Offer',
+    'url': url_for('main.product_detail', product_id=product.id, _external=True),
+    'priceCurrency': 'PHP',
+    'price': '%.2f'|format(product.price_cents / 100)
+  }
+} %}
+<script type="application/ld+json" nonce="{{ g.csp_nonce }}">{{ product_schema|tojson }}</script>
+{% endblock %}
+{% block social_image %}
+<meta property="og:image" content="{{ url_for('main.product_image', name=product.image_name, _external=True) }}">
+<meta property="og:image:alt" content="{{ product.name }}">
+<meta name="twitter:image" content="{{ url_for('main.product_image', name=product.image_name, _external=True) }}">
+<meta name="twitter:image:alt" content="{{ product.name }}">
 {% endblock %}
 {% block body %}
 {% include "_header.html" %}
-<main>
+<main data-product-impression="{{ product.id }}" data-impression-source="{{ detail_source }}" data-recent-product="{{ product.id }}">
   <section class="product-detail-shell">
     <div class="product-detail-image"><img src="{{ url_for('main.product_image', name=product.image_name) }}" alt="{{ product.name }}">{% if product.is_sponsored %}<span>Sponsored placement</span>{% endif %}</div>
     <div class="product-detail-copy">
@@ -22,7 +43,7 @@
       {% if product.best_for %}<div class="detail-best"><b>Best for</b><span>{{ product.best_for }}</span></div>{% endif %}
       <p class="detail-description">{{ product.description }}</p>
       <a class="button primary detail-cta" href="{{ url_for('main.outbound', product_id=product.id, source=detail_source) }}" target="_blank" rel="sponsored nofollow noopener">Check current price on {{ 'TikTok Shop' if product.marketplace == 'tiktok' else product.marketplace|title }} ↗</a>
-      <div class="share-kit"><button type="button" data-share-url="{{ share_url }}" data-share-title="{{ product.name }} on SulitShelf PH">Share product</button><button type="button" data-copy="{{ share_url }}">Copy link</button><a href="{{ url_for('main.product_qr', product_id=product.id) }}" download>Download QR</a></div>
+      <div class="share-kit"><button type="button" data-save-product="{{ product.id }}">♡ Save product</button><button type="button" data-share-url="{{ share_url }}" data-share-title="{{ product.name }} on SulitShelf PH">Share product</button><button type="button" data-copy="{{ share_url }}">Copy link</button><a href="{{ url_for('main.product_qr', product_id=product.id) }}" download>Download QR</a></div>
       <div class="product-qr"><img src="{{ url_for('main.product_qr', product_id=product.id) }}" alt="QR code for {{ product.name }}"><span>Scan to open this product page</span></div>
     </div>
   </section>

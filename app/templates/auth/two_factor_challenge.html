@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Verify your sign-in · SulitShelf PH{% endblock %}
+{% block body_class %}auth-page security-auth-page{% endblock %}
+{% block meta %}<meta name="description" content="Complete secure two-factor verification for SulitShelf PH."><meta name="robots" content="noindex,nofollow">{% endblock %}
+{% block body %}
+<main class="security-auth-shell">
+  <a class="brand security-brand" href="{{ url_for('main.home') }}"><img class="brand-icon" src="{{ url_for('static', filename='images/brand-icon.webp') }}" alt=""><strong>SulitShelf <em>PH</em></strong></a>
+  <section class="security-auth-card" aria-labelledby="two-factor-title">
+    <span class="security-step-mark">02</span>
+    <p class="eyebrow">TWO-FACTOR VERIFICATION</p>
+    <h1 id="two-factor-title">One more secure step.</h1>
+    <p>Open your authenticator app and enter its current six-digit code. You can also use one unused recovery code.</p>
+    <form class="auth-form two-factor-code-form" method="post" data-auth-form data-submit-label="Verifying…">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="auth-field"><span>Authenticator or recovery code</span><div class="auth-input-wrap two-factor-input-wrap"><i aria-hidden="true">⌾</i><input name="code" required minlength="6" maxlength="24" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="123456 or XXXX-XXXX-XXXX-XXXX" autofocus data-two-factor-code></div></label>
+      <button class="button primary auth-submit" type="submit"><span>Verify and sign in</span><i aria-hidden="true">→</i></button>
+    </form>
+    <div class="two-factor-help"><span>Codes refresh every 30 seconds.</span><span>Recovery codes work once.</span></div>
+    <a class="security-back-link" href="{{ url_for('auth.login') }}">← Restart sign-in</a>
+  </section>
+</main>
+{% endblock %}

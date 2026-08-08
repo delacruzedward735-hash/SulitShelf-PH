@@ -1,6 +1,9 @@
 __pycache__/
 *.py[cod]
 .env
+.env.*
+!.env.example
+!.env.production.example
 .venv/
 venv/
 instance/
@@ -10,3 +13,4 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+*.dump

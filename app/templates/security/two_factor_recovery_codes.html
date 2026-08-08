@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Save your recovery codes · SulitShelf PH{% endblock %}
+{% block body_class %}security-page{% endblock %}
+{% block meta %}<meta name="description" content="Save your one-time SulitShelf PH two-factor recovery codes."><meta name="robots" content="noindex,nofollow">{% endblock %}
+{% block body %}
+<main class="security-management-shell compact">
+  <header class="security-management-header"><a class="brand" href="{{ url_for('main.home') }}"><img class="brand-icon" src="{{ url_for('static', filename='images/brand-icon.webp') }}" alt=""><strong>SulitShelf <em>PH</em></strong></a><span>Account protected</span></header>
+  <section class="recovery-codes-card">
+    <span class="recovery-success-mark">✓</span><p class="eyebrow">{{ 'TWO-FACTOR AUTHENTICATION IS ON' if first_setup else 'NEW RECOVERY CODES READY' }}</p><h1>Save these codes now.</h1><p>Each code signs you in once if your authenticator app or phone is unavailable. The old recovery codes no longer work.</p>
+    <div class="recovery-code-grid" aria-label="One-time recovery codes">{% for code in recovery_codes %}<code>{{ code }}</code>{% endfor %}</div>
+    <div class="recovery-code-actions"><button class="button dark" type="button" data-copy="{{ recovery_codes|join('\n') }}">Copy all codes</button><button class="button dark" type="button" data-print-page>Print codes</button></div>
+    <div class="recovery-warning"><b>Important</b><span>Store these away from your password. SulitShelf stores only keyed digests and cannot show these exact codes again.</span></div>
+    <a class="button primary recovery-continue" href="{{ url_for('auth.account_security') }}">I saved my codes <b>→</b></a>
+  </section>
+</main>
+{% endblock %}

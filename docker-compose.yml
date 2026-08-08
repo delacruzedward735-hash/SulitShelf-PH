@@ -1,30 +1,142 @@
+x-app-environment: &app-environment
+  APP_ENV: production
+  APP_VERSION: ${APP_VERSION:-local-production}
+  SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env.production}
+  TWO_FACTOR_ENCRYPTION_KEY: ${TWO_FACTOR_ENCRYPTION_KEY:?Set TWO_FACTOR_ENCRYPTION_KEY in .env.production}
+  DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env.production}
+  ADMIN_EMAILS: ${ADMIN_EMAILS:?Set ADMIN_EMAILS in .env.production}
+  SERVICE_CONTACT_EMAIL: ${SERVICE_CONTACT_EMAIL:-}
+  TRUSTED_HOSTS: ${TRUSTED_HOSTS:?Set TRUSTED_HOSTS in .env.production}
+  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL in .env.production}
+  OAUTH_REDIRECT_BASE_URL: ${OAUTH_REDIRECT_BASE_URL:?Set OAUTH_REDIRECT_BASE_URL in .env.production}
+  SESSION_COOKIE_SECURE: "true"
+  REMEMBER_COOKIE_SECURE: "true"
+  PROXY_FIX_X_FOR: "1"
+  PROXY_FIX_X_PROTO: "1"
+  PROXY_FIX_X_HOST: "1"
+  PROXY_FIX_X_PORT: "0"
+  PROXY_FIX_X_PREFIX: "0"
+  FORWARDED_ALLOW_IPS: "*"
+  RATELIMIT_STORAGE_URI: redis://redis:6379/0
+  HEARTBEAT_TOKEN: ${HEARTBEAT_TOKEN:-}
+  IMAGE_STORAGE_BACKEND: cloudinary
+  CLOUDINARY_URL: ${CLOUDINARY_URL:?Set CLOUDINARY_URL in .env.production}
+  CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-sulitshelf}
+  IMAGE_WEBP_QUALITY: ${IMAGE_WEBP_QUALITY:-82}
+  IMAGE_MAX_DIMENSION: ${IMAGE_MAX_DIMENSION:-1600}
+  CSV_IMPORT_MAX_BYTES: ${CSV_IMPORT_MAX_BYTES:-2000000}
+  BULK_PRODUCT_MAX_ROWS: ${BULK_PRODUCT_MAX_ROWS:-250}
+  COMMISSION_MAX_ROWS: ${COMMISSION_MAX_ROWS:-5000}
+  PRODUCT_STALE_DAYS: ${PRODUCT_STALE_DAYS:-30}
+  COMMISSION_HASH_KEY: ${COMMISSION_HASH_KEY:?Set COMMISSION_HASH_KEY in .env.production}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+  GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+  FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID:-}
+  FACEBOOK_CLIENT_SECRET: ${FACEBOOK_CLIENT_SECRET:-}
+  FACEBOOK_GRAPH_VERSION: ${FACEBOOK_GRAPH_VERSION:-v25.0}
+  PASSWORD_RESET_ENABLED: ${PASSWORD_RESET_ENABLED:-false}
+  EMAIL_PROVIDER: ${EMAIL_PROVIDER:-auto}
+  EMAIL_FAILOVER_ENABLED: ${EMAIL_FAILOVER_ENABLED:-true}
+  EMAIL_TIMEOUT_SECONDS: ${EMAIL_TIMEOUT_SECONDS:-10}
+  PASSWORD_RESET_TOKEN_MINUTES: ${PASSWORD_RESET_TOKEN_MINUTES:-30}
+  TWO_FACTOR_CHALLENGE_MINUTES: ${TWO_FACTOR_CHALLENGE_MINUTES:-5}
+  MAIL_FROM_EMAIL: ${MAIL_FROM_EMAIL:-}
+  MAIL_FROM_NAME: ${MAIL_FROM_NAME:-SulitShelf PH}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  MAILERSEND_API_TOKEN: ${MAILERSEND_API_TOKEN:-}
+  DODO_PAYMENTS_API_KEY: ${DODO_PAYMENTS_API_KEY:-}
+  DODO_PAYMENTS_WEBHOOK_KEY: ${DODO_PAYMENTS_WEBHOOK_KEY:-}
+  DODO_PAYMENTS_ENVIRONMENT: ${DODO_PAYMENTS_ENVIRONMENT:-live_mode}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+  GUNICORN_THREADS: ${GUNICORN_THREADS:-4}
+  GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-30}
+
 services:
   db:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: sulitshelf
-      POSTGRES_USER: sulitshelf
-      POSTGRES_PASSWORD: change-this-password
+      POSTGRES_DB: ${POSTGRES_DB:-sulitshelf}
+      POSTGRES_USER: ${POSTGRES_USER:-sulitshelf}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sulitshelf -d sulitshelf"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
-      retries: 10
-  web:
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:8.0-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
     build: .
-    env_file: .env
-    environment:
-      DATABASE_URL: postgresql+psycopg://sulitshelf:change-this-password@db:5432/sulitshelf
-      SESSION_COOKIE_SECURE: "false"
-    ports:
-      - "8000:8000"
-    volumes:
-      - uploads:/app/instance/uploads
+    environment: *app-environment
+    command: ["python", "-m", "flask", "--app", "run.py", "deploy-release"]
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  web:
+    build: .
+    restart: unless-stopped
+    environment:
+      <<: *app-environment
+      RUN_MIGRATIONS_ON_START: "false"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env.production}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   postgres_data:
-  uploads:
+  caddy_data:
+  caddy_config:

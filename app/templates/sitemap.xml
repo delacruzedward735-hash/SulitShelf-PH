@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>{{ url_for('main.home', _external=True) }}</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
+  {% for product in products %}<url><loc>{{ url_for('main.product_detail', product_id=product.id, _external=True) }}</loc><lastmod>{{ product.updated_at.date().isoformat() }}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>{% endfor %}
+  {% for shop in shops %}<url><loc>{{ url_for('main.public_shop', slug=shop.slug, _external=True) }}</loc><lastmod>{{ shop.updated_at.date().isoformat() }}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>{% endfor %}
+  {% for campaign in campaigns %}<url><loc>{{ url_for('main.campaign', slug=campaign.slug, _external=True) }}</loc><lastmod>{{ campaign.updated_at.date().isoformat() }}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>{% endfor %}
+</urlset>

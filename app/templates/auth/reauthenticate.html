@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Confirm your identity · SulitShelf PH{% endblock %}
+{% block body_class %}auth-page security-auth-page{% endblock %}
+{% block meta %}<meta name="description" content="Confirm your identity before changing SulitShelf PH security settings."><meta name="robots" content="noindex,nofollow">{% endblock %}
+{% block body %}
+<main class="security-auth-shell">
+  <a class="brand security-brand" href="{{ url_for('main.home') }}"><img class="brand-icon" src="{{ url_for('static', filename='images/brand-icon.webp') }}" alt=""><strong>SulitShelf <em>PH</em></strong></a>
+  <section class="security-auth-card" aria-labelledby="reauth-title">
+    <span class="security-step-mark">✓</span>
+    <p class="eyebrow">SECURITY CHECK</p>
+    <h1 id="reauth-title">Confirm it’s you.</h1>
+    <p>This extra check protects sensitive account changes when your session was restored from “Keep me signed in.”</p>
+    {% if current_user.has_usable_password %}
+    <form class="auth-form" method="post" action="{{ url_for('auth.reauthenticate', next=next_url) }}" data-auth-form data-submit-label="Confirming…">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="auth-field"><span>Password</span><div class="auth-input-wrap auth-password-wrap"><i aria-hidden="true">••</i><input type="password" name="password" required autocomplete="current-password" placeholder="Enter your password" autofocus><button type="button" data-password-toggle aria-label="Show password" aria-pressed="false">Show</button></div></label>
+      <button class="button primary auth-submit" type="submit"><span>Confirm my identity</span><i aria-hidden="true">→</i></button>
+    </form>
+    {% endif %}
+    {% if reauth_providers %}<div class="reauth-divider"><span>OR CONFIRM WITH</span></div><div class="reauth-provider-list">{% for provider in reauth_providers %}<a href="{{ url_for('auth.oauth_start', provider=provider.key, mode='reauth', next=next_url) }}"><b class="provider-mark oauth-{{ provider.key }}">{{ provider.mark }}</b><span>Continue with {{ provider.name }}</span><i>→</i></a>{% endfor %}</div>{% endif %}
+    {% if not current_user.has_usable_password and not reauth_providers %}<p class="security-warning">No reauthentication method is currently available. Connect an OAuth provider or ask the administrator for account recovery help.</p>{% endif %}
+    <a class="security-back-link" href="{{ url_for('promoter.dashboard', tab='settings') }}">← Return to Shop settings</a>
+  </section>
+</main>
+{% endblock %}

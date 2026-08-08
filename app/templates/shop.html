@@ -1,18 +1,31 @@
 {% extends "base.html" %}
 {% block title %}{{ shop.name }} · SulitShelf PH{% endblock %}
-{% block meta %}<meta name="description" content="{{ shop.bio }}"><link rel="canonical" href="{{ url_for('main.public_shop', slug=shop.slug, _external=True) }}">{% endblock %}
+{% block meta %}<meta name="description" content="{{ shop.bio }}"><meta property="og:title" content="{{ shop.name }} · SulitShelf PH"><meta property="og:description" content="{{ shop.branding_tagline if custom_branding and shop.branding_tagline else shop.bio }}"><meta property="og:type" content="website"><link rel="canonical" href="{{ url_for('main.public_shop', slug=shop.slug, _external=True) }}">{% endblock %}
+{% block social_image %}
+{% if custom_branding and shop.branding_banner_name %}
+<meta property="og:image" content="{{ url_for('main.branding_image', name=shop.branding_banner_name, _external=True) }}"><meta name="twitter:image" content="{{ url_for('main.branding_image', name=shop.branding_banner_name, _external=True) }}"><meta property="og:image:alt" content="{{ shop.name }} storefront"><meta name="twitter:image:alt" content="{{ shop.name }} storefront">
+{% elif custom_branding and shop.branding_logo_name %}
+<meta property="og:image" content="{{ url_for('main.branding_image', name=shop.branding_logo_name, _external=True) }}"><meta name="twitter:image" content="{{ url_for('main.branding_image', name=shop.branding_logo_name, _external=True) }}"><meta property="og:image:alt" content="{{ shop.name }} logo"><meta name="twitter:image:alt" content="{{ shop.name }} logo">
+{% else %}{{ super() }}{% endif %}
+{% endblock %}
 {% block body %}
 {% include "_header.html" %}
 <main>
-  <section class="shop-hero">
+  <section class="shop-hero shop-theme-{{ shop.branding_theme if custom_branding else 'orange' }} {% if custom_branding %}custom-shop-hero{% endif %}">
+    {% if custom_branding and shop.branding_banner_name %}<img class="shop-banner-image" src="{{ url_for('main.branding_image', name=shop.branding_banner_name) }}" alt="">{% endif %}
+    <div class="shop-hero-content">
+    {% if custom_branding and shop.branding_logo_name %}<img class="shop-brand-logo" src="{{ url_for('main.branding_image', name=shop.branding_logo_name) }}" alt="{{ shop.name }} logo">{% endif %}
     <p>INDEPENDENT PROMOTER SHOP</p>
     <h1>{{ shop.name }}</h1>
     {% if shop.is_verified %}<b class="verified-shop">✓ Verified promoter</b>{% endif %}
+    {% if custom_branding and shop.branding_tagline %}<b class="shop-tagline">{{ shop.branding_tagline }}</b>{% endif %}
     <span>{{ shop.bio }}</span><small>✓ Active shelf · {{ products|length }} products</small>
     <div class="shop-share"><button type="button" class="button light" data-share-url="{{ url_for('main.public_shop', slug=shop.slug, _external=True) }}" data-share-title="{{ shop.name }} on SulitShelf PH">Share shop</button><button type="button" class="button light" data-copy="{{ url_for('main.public_shop', slug=shop.slug, _external=True) }}">Copy link</button></div>
+    </div>
   </section>
   <section class="section shop-growth-strip"><div><p class="eyebrow">SCAN &amp; SHARE</p><h2>Take this shelf anywhere.</h2><p>Use this QR code in social posts, printed cards, or your link-in-bio.</p></div><img src="{{ url_for('main.shop_qr', slug=shop.slug) }}" alt="QR code for {{ shop.name }}"></section>
   <section class="section"><div class="section-title"><div><p class="eyebrow">PROMOTER PICKS</p><h2>Products on this shelf</h2></div></div>{% if products %}<div class="product-grid">{% for product in products %}{% set card_source=shop_source %}{% include "_product_card.html" %}{% endfor %}</div>{% else %}<div class="empty"><h3>This promoter is preparing their first shelf.</h3></div>{% endif %}</section>
   <section class="disclosure"><b>ⓘ</b><p><strong>Affiliate disclosure.</strong> This promoter may earn a commission from qualified purchases. Always confirm current product details on the marketplace.</p></section>
+  {% if not custom_branding or not shop.hide_platform_branding %}<div class="powered-by-sulitshelf">Storefront powered by SulitShelf PH</div>{% endif %}
 </main>
 {% endblock %}

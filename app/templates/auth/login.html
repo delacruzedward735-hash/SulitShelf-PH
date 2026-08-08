@@ -1,31 +1,30 @@
 {% extends "base.html" %}
-{% block title %}Sign in · SulitShelf PH{% endblock %}
-{% block body_class %}auth-page{% endblock %}
+{% block title %}Sign in to your shelf · SulitShelf PH{% endblock %}
+{% block body_class %}auth-page auth-access-page{% endblock %}
+{% block meta %}<meta name="description" content="Sign in securely to manage your SulitShelf PH affiliate storefront."><meta name="robots" content="noindex,nofollow">{% endblock %}
 {% block body %}
-<main class="auth-shell">
-  <a class="brand" href="{{ url_for('main.home') }}"><i>▣</i><strong>SulitShelf <em>PH</em></strong></a>
-  <section>
-    <p class="eyebrow">PROMOTER &amp; ADMIN ACCESS</p>
-    <h1>Welcome back.</h1>
-    <p>Manage your affiliate shelf, product listings, analytics, and optional support.</p>
-    <div class="oauth-grid" aria-label="Social sign-in options">
-      {% for provider in oauth_providers %}
-        {% if provider.configured %}
-          <a class="oauth-button oauth-{{ provider.key }}" href="{{ url_for('auth.oauth_start', provider=provider.key) }}"><b>{{ provider.mark }}</b><span>Continue with {{ provider.name }}</span></a>
-        {% else %}
-          <span class="oauth-button unavailable" title="The administrator must configure this provider"><b>{{ provider.mark }}</b><span>{{ provider.name }} setup needed</span></span>
-        {% endif %}
-      {% endfor %}
-    </div>
-    <div class="oauth-divider"><span>or use your password</span></div>
-    <form method="post">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label>Email<input type="email" name="email" required autocomplete="email"></label>
-      <label>Password<input type="password" name="password" required autocomplete="current-password"></label>
-      <label class="check"><input type="checkbox" name="remember" value="yes">Keep me signed in</label>
-      <button class="button primary">Sign in</button>
-    </form>
-    <p>New promoter? <a href="{{ url_for('auth.register') }}">Create an account</a></p>
-  </section>
+{% set auth_mode = 'login' %}
+<main class="auth-shell auth-access-shell">
+  <div class="auth-access-frame">
+    {% include "auth/_showcase.html" %}
+    <section class="auth-form-panel auth-login-panel" aria-labelledby="login-title">
+      <a class="brand auth-mobile-brand" href="{{ url_for('main.home') }}"><img class="brand-icon" src="{{ url_for('static', filename='images/brand-icon.webp') }}" alt=""><strong>SulitShelf <em>PH</em></strong></a>
+      <header class="auth-form-header">
+        <p class="eyebrow">PROMOTER &amp; ADMIN ACCESS</p>
+        <h2 id="login-title">Welcome back.</h2>
+        <p>Sign in to manage products, improve your storefront, and see how your links perform.</p>
+      </header>
+      {% include "auth/_social_buttons.html" %}
+      <form class="auth-form" method="post" data-auth-form data-submit-label="Signing you in…">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="auth-field"><span>Email address</span><div class="auth-input-wrap"><i aria-hidden="true">@</i><input type="email" name="email" value="{{ request.form.get('email','') }}" required autocomplete="email" inputmode="email" placeholder="you@example.com" autofocus></div></label>
+        <label class="auth-field"><span class="auth-label-row"><b>Password</b>{% if config.PASSWORD_RESET_ENABLED %}<a href="{{ url_for('auth.forgot_password') }}">Forgot password?</a>{% endif %}</span><div class="auth-input-wrap auth-password-wrap"><i aria-hidden="true">••</i><input type="password" name="password" required autocomplete="current-password" placeholder="Enter your password"><button type="button" data-password-toggle aria-label="Show password" aria-pressed="false">Show</button></div></label>
+        <label class="auth-remember"><input type="checkbox" name="remember" value="yes"><span><b>Keep me signed in</b><small>Use this only on your personal device.</small></span></label>
+        <button class="button primary auth-submit" type="submit"><span>Sign in to my shelf</span><i aria-hidden="true">→</i></button>
+      </form>
+      <p class="auth-switch">New to SulitShelf? <a href="{{ url_for('auth.register') }}">Create your free shelf</a></p>
+      <p class="auth-security-note"><b>⌾</b><span>Your password and OAuth credentials are never shown to other promoters or shoppers.</span></p>
+    </section>
+  </div>
 </main>
 {% endblock %}

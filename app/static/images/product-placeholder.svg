@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff1ed"/><stop offset=".52" stop-color="#f8f5ff"/><stop offset="1" stop-color="#e9fdff"/></linearGradient></defs>
+  <rect width="900" height="900" fill="url(#bg)"/><rect x="248" y="255" width="404" height="330" rx="54" fill="#fff" stroke="#d9d9e4" stroke-width="16" stroke-dasharray="24 18"/>
+  <path d="M325 520l95-105 68 70 55-54 88 89" fill="none" stroke="#8b8e99" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle cx="535" cy="355" r="34" fill="#ee4d2d"/><text x="450" y="670" text-anchor="middle" fill="#5f626c" font-family="Arial,sans-serif" font-size="32" font-weight="700">ADD PRODUCT IMAGE</text>
+</svg>

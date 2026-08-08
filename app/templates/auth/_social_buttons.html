@@ -1,0 +1,11 @@
+{% set configured_providers = oauth_providers|selectattr('configured')|list %}
+{% if configured_providers %}
+<div class="auth-oauth-grid" aria-label="{{ 'Social sign-in' if auth_mode == 'login' else 'Social registration' }} options">
+  {% for provider in configured_providers %}
+  <a class="auth-oauth-button oauth-{{ provider.key }}" href="{{ url_for('auth.oauth_start', provider=provider.key, next=request.args.get('next')) }}">
+    <b aria-hidden="true">{{ provider.mark }}</b><span>{{ 'Continue' if auth_mode == 'login' else 'Join' }} with {{ provider.name }}</span><i aria-hidden="true">→</i>
+  </a>
+  {% endfor %}
+</div>
+<div class="auth-divider"><span>{{ 'or sign in with email' if auth_mode == 'login' else 'or create an account with email' }}</span></div>
+{% endif %}

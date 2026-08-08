@@ -4,25 +4,34 @@
 {% block body %}
 <main class="dashboard-shell studio-shell" data-tab-root data-default-tab="{{ request.args.get('tab','overview') }}">
   <aside class="dash-sidebar studio-sidebar">
-    <a class="brand light" href="{{ url_for('main.home') }}"><i>▣</i><strong>SulitShelf PH</strong></a>
+    <a class="brand light" href="{{ url_for('main.home') }}"><img class="brand-icon" src="{{ url_for('static', filename='images/brand-icon.webp') }}" alt=""><strong>SulitShelf PH</strong></a>
     <small class="sidebar-caption">PROMOTER STUDIO</small>
+    <div class="mobile-studio-account">
+      <div class="mobile-account-identity"><b>{{ current_user.display_name[:1]|upper }}</b><span><strong>{{ current_user.display_name }}</strong><small>{{ 'Administrator' if current_user.is_admin else ('Pro promoter' if is_pro else 'Free promoter') }}</small></span></div>
+      <div class="mobile-account-actions">
+        {% if current_user.is_admin %}<a href="{{ url_for('admin.dashboard') }}" aria-label="Open Administrator CMS">CMS</a>{% endif %}
+        <a href="{{ url_for('main.home') }}" aria-label="Open public mall">Mall</a>
+        <form method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Sign out</button></form>
+      </div>
+    </div>
     <nav>
       <button data-tab-button="overview"><span class="nav-icon">⌑</span>Overview</button>
+      <button data-tab-button="inbox"><span class="nav-icon">✉</span>Inbox{% if crm_unread_count %}<b class="inbox-count">{{ crm_unread_count if crm_unread_count < 100 else '99+' }}</b>{% endif %}</button>
       <button data-tab-button="add"><span class="nav-icon">◇</span>Add product</button>
       <button data-tab-button="growth"><span class="nav-icon">↗</span>Growth tools</button>
       <button data-tab-button="settings"><span class="nav-icon">⚙</span>Shop settings</button>
+      <button data-tab-button="billing"><span class="nav-icon">▤</span>Plan &amp; billing</button>
       <button data-tab-button="support"><span class="nav-icon">♡</span>Support project</button>
     </nav>
-    <div class="side-plan open-source-card">
-      <small>OPEN SOURCE ACCESS</small><strong>Free forever</strong>
-      <span>No subscription or paid feature gates</span>
-      <div class="slot-meter"><i></i></div>
-      <button type="button" data-open-tab="support">♡ Support SulitShelf</button>
+    <div class="side-plan">
+      <small>CURRENT ACCESS</small><strong>{{ 'Administrator' if current_user.is_admin else ('Pro' if is_pro else 'Free') }}</strong>
+      <span>{{ plan_capacity.used }}/{{ 'Unlimited' if plan_capacity.limit is none else plan_capacity.limit }} products · {{ plan_capacity.active }} active</span>
+      {% if plan_capacity.limit is not none %}<progress class="slot-progress" value="{{ plan_capacity.used }}" max="{{ plan_capacity.limit }}">{{ plan_capacity.used }}/{{ plan_capacity.limit }}</progress>{% endif %}
+      <button type="button" data-open-tab="billing">{{ 'View billing' if current_user.is_admin else ('Manage plan' if is_pro else 'Upgrade for ₱49') }}</button>
     </div>
-    <div class="sidebar-account"><b>{{ current_user.display_name[:1]|upper }}</b><span><strong>{{ current_user.display_name }}</strong><small>{{ current_user.email }}</small></span></div>
+    <div class="sidebar-account"><b>{{ current_user.display_name[:1]|upper }}</b><span><strong>{{ current_user.display_name }}</strong><small>{{ current_user.email }}</small></span><form class="sidebar-account-signout" method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" aria-label="Sign out of SulitShelf">Sign out</button></form></div>
     {% if current_user.is_admin %}<a href="{{ url_for('admin.dashboard') }}"><span class="nav-icon">◈</span>Administrator CMS</a>{% endif %}
     <a href="{{ url_for('main.home') }}"><span class="nav-icon">←</span>Public mall</a>
-    <form method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button><span class="nav-icon">↪</span>Sign out</button></form>
   </aside>
 
   <section class="dash-main studio-main">
@@ -32,7 +41,7 @@
     </header>
 
     <section data-tab-panel="overview">
-      <div class="stats four"><article><small>Products</small><strong>{{ products|length }}</strong></article><article><small>All-time clicks</small><strong>{{ products|sum(attribute='click_count') }}</strong></article><article><small>Clicks · last 7 days</small><strong>{{ clicks_7d }}</strong></article><article><small>Access</small><strong>Free forever</strong></article></div>
+      <div class="stats four"><article><small>Active products</small><strong>{{ plan_capacity.active }}</strong></article><article><small>All-time clicks</small><strong>{{ products|sum(attribute='click_count') }}</strong></article><article><small>Clicks · last 7 days</small><strong>{{ clicks_7d }}</strong></article><article><small>Plan</small><strong>{{ 'Admin' if current_user.is_admin else ('Pro' if is_pro else 'Free') }}</strong></article></div>
       <div class="panel onboarding-panel"><div class="panel-title"><div><p>QUICK START</p><h2>{{ onboarding_done }}/{{ onboarding|length }} growth steps complete</h2></div><span>{{ (onboarding_done * 100 / onboarding|length)|round|int }}%</span></div><progress class="onboarding-meter" value="{{ onboarding_done }}" max="{{ onboarding|length }}">{{ onboarding_done }}/{{ onboarding|length }}</progress><div class="onboarding-list">{% for label,complete,tab in onboarding %}<button class="{{ 'done' if complete }}" data-open-tab="{{ tab }}"><i>{{ '✓' if complete else loop.index }}</i><span>{{ label }}</span><b>→</b></button>{% endfor %}</div></div>
       <div class="panel"><div class="panel-title"><div><p>YOUR LISTINGS</p><h2>Products on your shelves</h2></div><button data-open-tab="add">Add product</button></div>
         {% if products %}<div class="listing-list">{% for product in products %}<article><img src="{{ url_for('main.product_image', name=product.image_name) }}" alt=""><div><strong>{{ product.name }}</strong><small>{{ product.marketplace|title }} · {{ product.department }} · {{ product.click_count }} clicks</small></div><form class="price-refresh" method="post" action="{{ url_for('promoter.refresh_product_price', product_id=product.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="number" name="price" min="0" max="1000000" step="0.01" value="{{ '%.2f'|format(product.price_cents/100) }}" aria-label="Current price for {{ product.name }}"><button title="Save price and checked date">Update price</button></form><span class="status {{ product.status }}">{{ product.status }}</span><button type="button" data-copy="{{ url_for('main.product_detail', product_id=product.id, source='shared', _external=True) }}">Copy link</button><form method="post" action="{{ url_for('promoter.product_status', product_id=product.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>{{ 'Pause' if product.status=='active' else 'Activate' }}</button></form><form method="post" action="{{ url_for('promoter.delete_product', product_id=product.id) }}" data-confirm="Delete this product permanently?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="danger">Delete</button></form></article>{% endfor %}</div>
@@ -40,13 +49,18 @@
       </div>
     </section>
 
+    <section data-tab-panel="inbox" hidden>
+      <div class="inbox-heading"><div><p>PRIVATE INBOX</p><h2>Messages from SulitShelf PH</h2><span>Account updates, support replies, and platform announcements appear here.</span></div>{% if crm_unread_count %}<form method="post" action="{{ url_for('promoter.read_all_crm_messages') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button dark">Mark all read</button></form>{% endif %}</div>
+      {% if crm_messages %}<div class="promoter-inbox">{% for message in crm_messages %}<article class="panel crm-inbox-message {{ 'unread' if not message.read_at else '' }}"><header><div><span class="crm-sender-mark">S</span><div><strong>SulitShelf PH Administrator</strong><small>{{ message.created_at.strftime('%b %d, %Y · %I:%M %p') }}</small></div></div>{% if not message.read_at %}<span class="crm-new-pill">NEW</span>{% else %}<span class="crm-read-pill">READ</span>{% endif %}</header><h3>{{ message.subject }}</h3><p>{{ message.body }}</p>{% if not message.read_at %}<form method="post" action="{{ url_for('promoter.read_crm_message', message_id=message.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Mark as read</button></form>{% endif %}</article>{% endfor %}</div>{% else %}<div class="panel empty crm-empty"><span>✉</span><h3>Your inbox is clear.</h3><p>Messages from the SulitShelf administrator will appear here.</p></div>{% endif %}
+    </section>
+
     <section data-tab-panel="add" hidden>
       <div class="panel product-create-panel">
-        <div class="panel-title product-panel-title"><div><p>NEW LISTING</p><h2>Stock a department shelf</h2></div><span>{{ products|length }} products · no plan limit</span></div>
-        <form class="product-create-form" method="post" action="{{ url_for('promoter.add_product') }}" enctype="multipart/form-data">
+        <div class="panel-title product-panel-title"><div><p>NEW LISTING</p><h2>Stock a department shelf</h2></div><span>{{ plan_capacity.used }}/{{ 'Unlimited' if plan_capacity.limit is none else plan_capacity.limit }} products</span></div>
+        <form class="product-create-form" method="post" action="{{ url_for('promoter.add_product') }}" enctype="multipart/form-data" data-product-create-form data-product-draft-key="sulitshelf-product-draft-{{ current_user.shop.id }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="product-upload-column">
-            <label class="product-dropzone" data-image-dropzone>
+            <label class="product-dropzone" data-image-dropzone data-max-bytes="{{ config['IMAGE_UPLOAD_MAX_BYTES'] }}">
               <input class="sr-only" type="file" name="image" accept="image/jpeg,image/png,image/webp" required data-image-input>
               <img data-image-preview alt="Selected product preview" hidden>
               <span class="upload-placeholder" data-upload-placeholder><i>⌑<b>+</b></i><strong>Upload product picture</strong><small>JPG, PNG, or WebP · maximum 8 MB · optimized automatically</small><em>Choose image</em></span>
@@ -55,6 +69,7 @@
             <p class="selected-file" data-selected-file>No image selected</p>
           </div>
           <div class="product-fields">
+            <div class="product-form-status" role="alert" hidden data-product-form-status></div>
             <label>Product name<input name="name" minlength="3" maxlength="100" placeholder="Example: 10,000mAh Power Bank" required></label>
             <label>Affiliate link<input type="url" name="affiliate_url" placeholder="Paste your Shopee, Lazada, or TikTok Shop affiliate link" required></label>
             <div class="field-row"><label>Department<select name="department" required><option value="" selected disabled>Choose a department</option>{% for item in departments %}<option value="{{ item }}">{{ item }}</option>{% endfor %}</select></label><label>Listed price (PHP)<input type="number" name="price" min="0" max="1000000" step="0.01" placeholder="499.00" required></label></div>
@@ -64,7 +79,7 @@
             <label>Optional label<input name="badge" maxlength="32" placeholder="Example: Under ₱500"></label>
             <p class="form-help">The marketplace is detected from the URL. Your exact affiliate parameters are preserved when a visitor opens the listing.</p>
             <label class="rights-confirm"><input type="checkbox" name="rights_confirmed" value="yes" required><span>I confirm this is my approved affiliate link and I may use the product image.</span></label>
-            <button class="button primary publish-button" type="submit"><span>◇</span> Publish product</button>
+            <button class="button primary publish-button" type="submit" data-product-submit><span>◇</span><b data-product-submit-label>Publish product</b></button>
           </div>
         </form>
       </div>
@@ -79,27 +94,121 @@
       </div>
       <div class="panel"><div class="panel-title"><div><p>TOP PRODUCTS</p><h2>Your best-performing links</h2></div></div>{% if top_products %}<div class="top-product-list">{% for product in top_products %}<article><span>#{{ loop.index }}</span><img src="{{ url_for('main.product_image', name=product.image_name) }}" alt=""><div><strong>{{ product.name }}</strong><small>{{ product.marketplace|title }} · {{ product.click_count }} all-time clicks</small></div><button type="button" data-copy="{{ url_for('main.product_detail', product_id=product.id, source='shared', _external=True) }}">Copy link</button><a href="{{ url_for('main.product_qr', product_id=product.id) }}" download>QR</a></article>{% endfor %}</div>{% else %}<div class="mini-empty">Publish your first product to unlock its share link and QR code.</div>{% endif %}</div>
       <div class="panel content-prompts"><div class="panel-title"><div><p>CONTENT STARTERS</p><h2>Ideas for your next short video</h2></div></div><div><article><b>Problem → solution</b><p>“If your phone dies during class, this sulit power option may help.”</p></article><article><b>Budget challenge</b><p>“Three useful student finds under ₱500.”</p></article><article><b>Honest comparison</b><p>“Who should buy this—and who should skip it?”</p></article></div></div>
+      <div class="panel"><div class="panel-title"><div><p>PRODUCT HEALTH</p><h2>Keep your shelf trustworthy</h2></div><form method="post" action="{{ url_for('promoter.product_health_scan') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Run health scan</button></form></div>
+        <div class="growth-kpis"><article><small>Healthy</small><strong>{{ health_counts.healthy }}</strong></article><article><small>Needs attention</small><strong>{{ health_counts.needs_attention }}</strong></article><article><small>Not checked</small><strong>{{ health_counts.unchecked }}</strong></article><article><small>Total products</small><strong>{{ products|length }}</strong></article></div>
+        {% if products %}<div class="health-list">{% for product in products if product.health_status != 'healthy' %}<article><img src="{{ url_for('main.product_image', name=product.image_name) }}" alt=""><div><strong>{{ product.name }}</strong><small>{{ product.health_note or 'Run the health scan to check this listing.' }}</small></div><div><span class="health-pill {{ product.health_status }}">{{ product.health_status|replace('_',' ') }}</span>{% if product.image_name == 'builtin:product-placeholder' %}<form method="post" action="{{ url_for('promoter.replace_product_image', product_id=product.id) }}" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="file" name="image" accept="image/jpeg,image/png,image/webp" required><button>Upload image</button></form>{% endif %}</div></article>{% else %}<div class="mini-empty">Every checked product currently looks healthy.</div>{% endfor %}</div>{% endif %}
+      </div>
+      {% if is_pro %}
+      <div class="panel"><div class="panel-title"><div><p>ADVANCED PERFORMANCE · LAST 30 DAYS</p><h2>Views, clicks, and devices</h2></div><span>Aggregate data only · no visitor IPs</span></div><div class="growth-kpis"><article><small>Product views</small><strong>{{ metric_impressions }}</strong></article><article><small>Outbound clicks</small><strong>{{ metric_clicks }}</strong></article><article><small>Click-through rate</small><strong>{{ metric_ctr }}%</strong></article><article><small>Imported commission · 90 days</small><strong>{{ php(commission_cents) }}</strong></article></div>
+        {% if device_rows %}<div class="analytics-list">{% for device,views,clicks in device_rows %}<article><span>{{ device|title }}</span><progress value="{{ clicks }}" max="{{ metric_clicks or 1 }}">{{ clicks }}</progress><strong>{{ clicks }} clicks · {{ views }} views</strong></article>{% endfor %}</div>{% else %}<div class="mini-empty">Device-level aggregate analytics will appear after new product views and clicks.</div>{% endif %}
+      </div>
+      <div class="growth-import-heading"><div><p>PRO IMPORT CENTER</p><h2>Move faster without losing trust.</h2><span>Use SulitShelf templates so every row is validated before it reaches your public shelf or earnings dashboard.</span></div><span class="growth-import-badge">CSV · UTF-8 · PRIVATE</span></div>
+      <div class="growth-pro-grid import-workflow-grid">
+        <article class="panel growth-tool-card import-workflow-card product-import-card">
+          <header class="import-card-head"><span class="import-card-icon">＋</span><div><p>PRODUCT CATALOG</p><h2>Add products in bulk</h2></div><b>UP TO 250 ROWS</b></header>
+          <ol class="import-steps"><li><b>1</b><span><strong>Start with our template</strong><small>Keep the required column names unchanged.</small></span></li><li><b>2</b><span><strong>Add approved product details</strong><small>Affiliate URLs are checked against supported marketplaces.</small></span></li><li><b>3</b><span><strong>Upload and review</strong><small>New rows use a safe image placeholder until you add a real photo.</small></span></li></ol>
+          <a class="import-template-link" href="{{ url_for('promoter.bulk_product_template') }}"><span>CSV</span><div><strong>Product import template</strong><small>Download the correctly formatted starter file</small></div><b>Download ↓</b></a>
+          <form class="import-form" method="post" action="{{ url_for('promoter.bulk_add_products') }}" enctype="multipart/form-data" data-import-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="csv-dropzone" data-csv-picker data-max-bytes="2000000"><input class="sr-only" type="file" name="csv" accept=".csv,text/csv" required data-csv-input><span class="csv-file-mark">⇧</span><span><strong data-csv-title>Drop your completed CSV here</strong><small data-csv-filename>or choose a file · maximum 2 MB</small></span><em>Choose CSV</em></label>
+            <label class="import-consent"><input type="checkbox" name="rights_confirmed" value="yes" required><span><strong>Publishing rights confirmed</strong><small>I confirm every link and product detail is approved for my use.</small></span></label>
+            <button class="button primary import-submit" type="submit"><span data-import-label>Validate and import products</span><b>→</b></button>
+          </form>
+        </article>
+        <article class="panel growth-tool-card import-workflow-card commission-import-card">
+          <header class="import-card-head"><span class="import-card-icon">₱</span><div><p>ACTUAL COMMISSION REPORTS</p><h2>Import affiliate earnings</h2></div><b>PRIVATE BY DESIGN</b></header>
+          <div class="import-privacy-note"><span>⌁</span><p><strong>Clicks are never counted as sales.</strong> Only your normalized marketplace report updates earnings. Raw order references are immediately hashed.</p></div>
+          <a class="import-template-link" href="{{ url_for('promoter.commission_template') }}"><span>CSV</span><div><strong>Commission report template</strong><small>See the supported marketplace report columns</small></div><b>Download ↓</b></a>
+          <form class="import-form" method="post" action="{{ url_for('promoter.import_commissions') }}" enctype="multipart/form-data" data-import-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="import-select-field"><span>Marketplace report</span><select name="marketplace" required><option value="" selected disabled>Choose the report source</option><option value="shopee">Shopee</option><option value="lazada">Lazada</option><option value="tiktok">TikTok Shop</option></select></label>
+            <label class="csv-dropzone compact" data-csv-picker data-max-bytes="2000000"><input class="sr-only" type="file" name="csv" accept=".csv,text/csv" required data-csv-input><span class="csv-file-mark">⇧</span><span><strong data-csv-title>Drop your earnings CSV here</strong><small data-csv-filename>or choose a file · maximum 2 MB</small></span><em>Choose CSV</em></label>
+            <div class="import-security-row"><span>✓ References hashed</span><span>✓ Approved totals only</span><span>✓ Duplicate-safe</span></div>
+            <button class="button primary import-submit" type="submit"><span data-import-label>Import commission report</span><b>→</b></button>
+          </form>
+        </article>
+      </div>
+      <section class="panel commission-summary-panel">
+        <div class="commission-summary-head"><div><p>APPROVED IMPORTED RESULTS · LAST 90 DAYS</p><h2>Your verified affiliate results</h2><span>Totals include approved marketplace rows only. Pending or rejected rows never inflate earnings.</span></div><b>{{ commission_rows }} APPROVED ROW{{ '' if commission_rows == 1 else 'S' }}</b></div>
+        <div class="commission-kpis"><article><span>₱</span><div><small>Approved commission</small><strong>{{ php(commission_cents) }}</strong></div></article><article><span>◎</span><div><small>Approved order value</small><strong>{{ php(commission_order_cents) }}</strong></div></article><article><span>✓</span><div><small>Verified report rows</small><strong>{{ commission_rows }}</strong></div></article></div>
+        {% if recent_commission_imports %}<div class="import-history refined"><div class="import-history-label"><span>RECENT IMPORTS</span><small>Newest first</small></div>{% for item in recent_commission_imports %}<article><span class="marketplace-file-mark">{{ item.marketplace[:1]|upper }}</span><div><strong>{{ item.marketplace|title }} · {{ item.original_filename }}</strong><small>{{ item.period_start }} to {{ item.period_end }} · {{ item.row_count }} imported rows{% if item.skipped_count %} · {{ item.skipped_count }} duplicates skipped{% endif %}</small></div><strong>{{ php(item.total_commission_cents) }}</strong></article>{% endfor %}</div>{% else %}<div class="commission-empty"><span>₱</span><h3>Your approved results will appear here.</h3><p>Download the commission template, add a normalized marketplace report, then import it above.</p><a href="{{ url_for('promoter.commission_template') }}">Download your first template →</a></div>{% endif %}
+      </section>
+      {% else %}
+      <div class="pro-lock"><h3>Unlock the Promoter Growth Center for ₱49/month.</h3><p>Pro includes unlimited products, bulk CSV import, commission-report tracking, advanced product-view/CTR analytics, device breakdowns, and storefront branding.</p><button class="button primary" type="button" data-open-tab="billing">View Pro</button></div>
+      {% endif %}
     </section>
 
     <section data-tab-panel="settings" hidden>
-      <div class="panel narrow">
-        <div class="panel-title"><div><p>PUBLIC PROFILE</p><h2>Shop settings</h2></div></div>
-        <form class="form-stack" method="post" action="{{ url_for('promoter.update_shop') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Shop name<input name="name" value="{{ current_user.shop.name }}" required></label><label>Shop URL<input name="slug" value="{{ current_user.shop.slug }}" required></label><label>Description<textarea name="bio" maxlength="240">{{ current_user.shop.bio }}</textarea></label><button class="button primary">Save settings</button></form>
-        {% set connected_providers = current_user.oauth_identities|map(attribute='provider')|list %}
-        <div class="social-settings">
-          <div><p>SECURE SIGN-IN</p><h3>Connected accounts</h3><span>Connect a provider only after signing in here. SulitShelf never stores provider access tokens.</span></div>
-          <div class="social-connection-list">
-            {% for provider in oauth_providers %}
-            <article class="{% if provider.key in connected_providers %}connected{% endif %}"><b class="provider-mark oauth-{{ provider.key }}">{{ provider.mark }}</b><div><strong>{{ provider.name }}</strong><small>{{ 'Connected' if provider.key in connected_providers else ('Ready to connect' if provider.configured else 'Administrator setup required') }}</small></div>{% if provider.key in connected_providers %}<form method="post" action="{{ url_for('auth.oauth_disconnect', provider=provider.key) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Disconnect</button></form>{% elif provider.configured %}<a href="{{ url_for('auth.oauth_start', provider=provider.key, mode='link') }}">Connect</a>{% else %}<span>Unavailable</span>{% endif %}</article>
-            {% endfor %}
+      <div class="settings-workspace-heading"><div><p>STOREFRONT CONTROL</p><h2>Make your shelf feel like your brand.</h2><span>Update the essentials, choose a visual theme, and preview what shoppers will see before saving.</span></div><a href="{{ url_for('main.public_shop', slug=current_user.shop.slug) }}" target="_blank" rel="noopener">Open live storefront <b>↗</b></a></div>
+      <form class="shop-settings-workspace" method="post" action="{{ url_for('promoter.update_shop') }}" enctype="multipart/form-data" data-branding-form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="panel shop-settings-card">
+          <header class="settings-section-head"><span>01</span><div><p>PUBLIC PROFILE</p><h3>Storefront essentials</h3><small>These details appear on your public shelf and in shared links.</small></div></header>
+          <div class="shop-profile-fields"><label>Shop name<input name="name" value="{{ current_user.shop.name }}" required maxlength="80" data-branding-name></label><label>Shop URL<span class="slug-input"><b>sulitshelf.ph/shop/</b><input name="slug" value="{{ current_user.shop.slug }}" required></span></label><label class="wide">Shop description<textarea name="bio" maxlength="240" data-character-field>{{ current_user.shop.bio }}</textarea><small>Explain the type of finds your shelf is known for.</small></label></div>
+          {% if is_pro %}
+          <div class="settings-divider"></div>
+          <header class="settings-section-head"><span>02</span><div><p>PRO STOREFRONT BRANDING</p><h3>Visual identity</h3><small>Choose a palette and add optional artwork. Images are optimized to WebP after upload.</small></div><b>PRO</b></header>
+          <fieldset class="branding-theme-field"><legend>Storefront theme</legend><div class="branding-theme-options">{% for theme in branding_themes %}<label class="theme-{{ theme }}"><input type="radio" name="branding_theme" value="{{ theme }}" {% if current_user.shop.branding_theme == theme %}checked{% endif %} data-branding-theme><span><i></i><b>{{ theme|title }}</b></span></label>{% endfor %}</div></fieldset>
+          <label class="branding-tagline-field">Short tagline<input name="branding_tagline" maxlength="120" value="{{ current_user.shop.branding_tagline }}" placeholder="Example: Honest student tech finds" data-branding-tagline><small>A short promise displayed below your shop name.</small></label>
+          <div class="branding-upload-grid">
+            <div class="branding-upload-group"><div class="branding-upload-title"><span>Shop logo</span><small>Square image works best</small></div><label class="branding-uploader logo-uploader" data-branding-upload data-branding-kind="logo"><input class="sr-only" type="file" name="branding_logo" accept="image/jpeg,image/png,image/webp" data-branding-input>{% if current_user.shop.branding_logo_name %}<img src="{{ url_for('main.branding_image', name=current_user.shop.branding_logo_name) }}" alt="Current shop logo" data-branding-local-preview>{% else %}<img alt="Selected shop logo" data-branding-local-preview hidden>{% endif %}<span data-branding-placeholder {% if current_user.shop.branding_logo_name %}hidden{% endif %}><b>＋</b><strong>Upload logo</strong><small>JPG, PNG, or WebP · up to 8 MB</small></span><em>Choose image</em></label>{% if current_user.shop.branding_logo_name %}<label class="branding-remove"><input type="checkbox" name="remove_logo" value="yes" data-branding-remove="logo"> Remove current logo</label>{% endif %}<small class="branding-file-name" data-branding-file-name="logo">{{ 'Current logo is active' if current_user.shop.branding_logo_name else 'No logo selected' }}</small></div>
+            <div class="branding-upload-group"><div class="branding-upload-title"><span>Hero banner</span><small>Wide image, 3:1 recommended</small></div><label class="branding-uploader banner-uploader" data-branding-upload data-branding-kind="banner"><input class="sr-only" type="file" name="branding_banner" accept="image/jpeg,image/png,image/webp" data-branding-input>{% if current_user.shop.branding_banner_name %}<img src="{{ url_for('main.branding_image', name=current_user.shop.branding_banner_name) }}" alt="Current hero banner" data-branding-local-preview>{% else %}<img alt="Selected hero banner" data-branding-local-preview hidden>{% endif %}<span data-branding-placeholder {% if current_user.shop.branding_banner_name %}hidden{% endif %}><b>＋</b><strong>Upload banner</strong><small>JPG, PNG, or WebP · up to 8 MB</small></span><em>Choose image</em></label>{% if current_user.shop.branding_banner_name %}<label class="branding-remove"><input type="checkbox" name="remove_banner" value="yes" data-branding-remove="banner"> Remove current banner</label>{% endif %}<small class="branding-file-name" data-branding-file-name="banner">{{ 'Current banner is active' if current_user.shop.branding_banner_name else 'No banner selected' }}</small></div>
           </div>
+          <label class="platform-branding-toggle"><input type="checkbox" name="hide_platform_branding" value="yes" {% if current_user.shop.hide_platform_branding %}checked{% endif %} data-hide-platform-branding><span><strong>Use a clean, brand-only footer</strong><small>Hide the storefront “Powered by SulitShelf” label.</small></span><i></i></label>
+          {% else %}<div class="pro-lock"><h3>Custom storefront branding is a Pro feature.</h3><p>Add a logo, banner, tagline, and theme without changing your public shop URL.</p></div>{% endif %}
+          <div class="settings-save-row"><span><i>✓</i> Changes appear publicly after you save.</span><button class="button primary" type="submit"><span>Save storefront settings</span><b>→</b></button></div>
         </div>
+        {% if is_pro %}<aside class="panel branding-preview-card"><div class="preview-label"><span>LIVE PREVIEW</span><small>Desktop storefront hero</small></div><div class="storefront-live-preview shop-theme-{{ current_user.shop.branding_theme }}" data-branding-live>{% if current_user.shop.branding_banner_name %}<img class="live-banner" src="{{ url_for('main.branding_image', name=current_user.shop.branding_banner_name) }}" alt="" data-branding-live-banner>{% else %}<img class="live-banner" alt="" data-branding-live-banner hidden>{% endif %}<div class="live-preview-copy"><div class="live-logo-frame">{% if current_user.shop.branding_logo_name %}<img src="{{ url_for('main.branding_image', name=current_user.shop.branding_logo_name) }}" alt="" data-branding-live-logo>{% else %}<img alt="" data-branding-live-logo hidden>{% endif %}<span data-branding-live-logo-placeholder {% if current_user.shop.branding_logo_name %}hidden{% endif %}>{{ current_user.shop.name[:1]|upper }}</span></div><small>CURATED AFFILIATE FINDS</small><h3 data-branding-live-name>{{ current_user.shop.name }}</h3><p data-branding-live-tagline>{{ current_user.shop.branding_tagline or 'Curated finds worth checking out.' }}</p><span class="preview-cta">Browse this shelf <b>→</b></span></div></div><div class="preview-powered" data-branding-powered {% if current_user.shop.hide_platform_branding %}hidden{% endif %}>Powered by <strong>SulitShelf PH</strong></div><div class="preview-guidance"><span>◈</span><div><strong>Preview before publishing</strong><p>Your uploaded images stay local to this preview until you press Save.</p></div></div></aside>{% endif %}
+      </form>
+      {% set connected_providers = current_user.oauth_identities|map(attribute='provider')|list %}
+      <div class="panel connected-accounts-card social-settings"><div><p>SECURE SIGN-IN</p><h3>Connected accounts</h3><span>Connect a provider only after signing in here. SulitShelf never stores provider access tokens.</span></div><div class="social-connection-list">{% for provider in oauth_providers %}<article class="{% if provider.key in connected_providers %}connected{% endif %}"><b class="provider-mark oauth-{{ provider.key }}">{{ provider.mark }}</b><div><strong>{{ provider.name }}</strong><small>{{ 'Connected' if provider.key in connected_providers else ('Ready to connect' if provider.configured else 'Administrator setup required') }}</small></div>{% if provider.key in connected_providers %}<form method="post" action="{{ url_for('auth.oauth_disconnect', provider=provider.key) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Disconnect</button></form>{% elif provider.configured %}<a href="{{ url_for('auth.oauth_start', provider=provider.key, mode='link') }}">Connect</a>{% else %}<span>Unavailable</span>{% endif %}</article>{% endfor %}</div></div>
+      <div class="panel account-security-card"><div class="account-security-mark {{ 'enabled' if current_user.two_factor_enabled else '' }}">{{ '✓' if current_user.two_factor_enabled else '⌾' }}</div><div><p>ACCOUNT PROTECTION</p><h3>{{ 'Two-factor authentication is enabled' if current_user.two_factor_enabled else 'Add authenticator-app 2FA' }}</h3><span>{{ (two_factor_recovery_remaining ~ ' recovery codes remain. Every password and OAuth sign-in requires a second step.') if current_user.two_factor_enabled else 'Require a six-digit authenticator code after password, Google, GitHub, or Facebook sign-in.' }}</span></div><a href="{{ url_for('auth.account_security') }}">{{ 'Manage security' if current_user.two_factor_enabled else 'Protect my account' }} <b>→</b></a></div>
+    </section>
+
+    <section data-tab-panel="billing" hidden>
+      <div class="billing-heading"><div><p>SIMPLE, AFFORDABLE PRICING</p><h2>Start free. Go unlimited for ₱49.</h2><span>No trial countdown. Free stays free; choose automatic monthly billing or a manual 30-day renewal.</span></div><div class="billing-current"><small>CURRENT PLAN</small><strong>{{ 'Administrator · Unlimited' if current_user.is_admin else ('Pro · Unlimited' if is_pro else 'Free · 50 products') }}</strong><span>{% if current_user.is_admin %}No subscription is required for the administrator shop{% elif is_pro %}Active until {{ current_user.shop.subscription_ends_at.strftime('%b %d, %Y') }} via {{ current_user.shop.subscription_source|title }}{% else %}{{ plan_capacity.remaining }} free product slots remaining{% endif %}</span></div></div>
+      <div class="billing-grid subscription-plan-grid">
+        <article class="premium-plan-card {% if not current_user.is_admin and not is_pro %}current{% endif %}">
+          {% if not current_user.is_admin and not is_pro %}<span class="current-badge">CURRENT</span>{% endif %}
+          <p>Free</p><h3>₱0<small>forever</small></h3><strong>Everything needed to launch an affiliate shelf</strong>
+          <ul><li><i>✓</i> Up to 50 products</li><li><i>✓</i> Shopee, Lazada &amp; TikTok Shop links</li><li><i>✓</i> Public shop, QR codes &amp; click analytics</li><li><i>✓</i> No trial and no expiry</li></ul>
+          <button class="plan-button" disabled>{{ 'Administrator access' if current_user.is_admin else ('Your current plan' if not is_pro else 'Available after Pro ends') }}</button>
+        </article>
+        <article class="premium-plan-card recommended {% if not current_user.is_admin and is_pro %}current{% endif %}">
+          <span class="best-value">BEST VALUE</span>{% if not current_user.is_admin and is_pro %}<span class="current-badge">ACTIVE</span>{% endif %}
+          <p>Pro</p><h3>{{ php(pro_plan.price_cents) }}<small>/month</small></h3><strong>Unlimited product uploads for serious promoters</strong>
+          <ul><li><i>✓</i> Unlimited products</li><li><i>✓</i> Bulk CSV and commission imports</li><li><i>✓</i> Advanced views, CTR and device analytics</li><li><i>✓</i> Logo, banner and storefront themes</li><li><i>✓</i> Automatic or manual monthly renewal</li></ul>
+          {% if current_user.is_admin %}<button class="plan-button" disabled>Administrator access is unlimited</button>
+          {% elif current_user.shop.subscription_source == 'dodo' and current_user.shop.subscription_status in ['active','on_hold'] and current_user.shop.subscription_customer_id %}<form method="post" action="{{ url_for('payments.dodo_customer_portal') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="plan-button">{{ 'Fix payment method' if current_user.shop.subscription_status == 'on_hold' else 'Manage automatic billing' }} <span>↗</span></button></form>
+          {% elif is_pro %}<button class="plan-button" disabled>Pro is active</button>
+          {% else %}<form method="post" action="{{ url_for('payments.dodo_subscribe') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="plan-button" {% if not pro_plan.is_active or not pro_plan.dodo_product_id %}disabled{% endif %}>{{ 'Subscribe with Dodo' if pro_plan.is_active and pro_plan.dodo_product_id else 'Dodo setup pending' }} <span>→</span></button></form>{% endif %}
+        </article>
+      </div>
+      <div class="billing-note"><strong>Two payment choices, one Pro plan.</strong><span>Dodo renews automatically and includes a self-service billing portal. Manual {{ settings.wallet_provider }} payment adds 30 days after administrator approval and does not auto-renew.</span></div>
+      <div class="gcash-box premium-gcash-box subscription-wallet-box">
+        <div class="gcash-heading"><span class="gcash-mark">{{ settings.wallet_provider[:1]|upper }}</span><div><p>MANUAL PRO RENEWAL</p><h3>Pay exactly {{ php(pro_plan.price_cents) }} and upload your receipt.</h3><span>The reference number and receipt screenshot are both required. Access starts only after administrator approval.</span></div></div>
+        {% if settings and (settings.gcash_number or settings.gcash_qr_name) %}
+        <div class="gcash-layout">
+          <div class="gcash-destination">{% if settings.gcash_qr_name %}<img src="{{ url_for('payments.wallet_qr') }}" alt="{{ settings.wallet_provider }} Pro payment QR code">{% endif %}<small>SEND {{ php(pro_plan.price_cents) }} TO</small><strong>{{ settings.gcash_account_name }}</strong><span>{{ settings.gcash_number }}</span></div>
+          {% if current_user.is_admin %}<div class="manual-disabled"><strong>Administrator access is already unlimited</strong><p>No Pro payment is required for the administrator shop.</p></div>
+          {% elif current_user.shop.subscription_source == 'dodo' and current_user.shop.subscription_status in ['active','on_hold'] %}<div class="manual-disabled"><strong>Dodo billing already exists</strong><p>Use the Dodo billing portal above to manage, cancel, or reactivate the subscription. Manual renewal is disabled to prevent duplicate payments.</p></div>
+          {% else %}<form class="gcash-submission-form" method="post" action="{{ url_for('payments.wallet_subscribe') }}" enctype="multipart/form-data" data-receipt-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label><span class="field-label">Plan amount</span><input value="{{ php(pro_plan.price_cents) }} · 30 days" readonly></label>
+            <label><span class="field-label">{{ settings.wallet_provider }} reference number <b>Required</b></span><input name="reference_number" minlength="6" maxlength="40" pattern="[A-Za-z0-9-]{6,40}" title="Use 6–40 letters, numbers, or hyphens." placeholder="Enter the reference from your receipt" autocomplete="off" required></label>
+            <div class="receipt-upload-field"><span class="field-label">Payment receipt screenshot <b>Required</b></span><label class="receipt-dropzone" data-receipt-dropzone><input class="sr-only" type="file" name="receipt" accept="image/jpeg,image/png,image/webp" required data-receipt-input><img alt="Selected Pro payment receipt preview" data-receipt-preview hidden><span data-receipt-placeholder><i>▧<b>+</b></i><strong>Upload your payment receipt</strong><small>JPG, PNG, or WebP · maximum 8 MB · stored privately</small><em>Choose receipt</em></span><button type="button" data-receipt-change hidden>Replace receipt</button></label><p class="receipt-filename" data-receipt-filename>No receipt selected — this is required before submission.</p></div>
+            <div class="receipt-requirements"><span>✓ Exact amount and reference must match</span><span>✓ Receipt must be clear and readable</span></div>
+            <button class="button primary receipt-submit" type="submit"><span>▤</span> Submit Pro payment for review</button>
+          </form>{% endif %}
+        </div>
+        {% else %}<p class="notice">The administrator is still configuring manual e-wallet payments. Use Dodo when available.</p>{% endif %}
+        {% if payment_submissions %}<div class="payment-history"><h4>Your manual Pro payment history</h4>{% for payment in payment_submissions %}<article><span class="status {{ payment.status }}">{{ payment.status }}</span><strong>{{ php(payment.amount_cents) }} · 30 days</strong><small>Ref {{ payment.reference_number }} · {{ payment.submitted_at.strftime('%b %d, %Y') }}</small></article>{% endfor %}</div>{% endif %}
       </div>
     </section>
 
     <section data-tab-panel="support" hidden>
-      <div class="billing-heading support-heading"><div><p>OPTIONAL SUPPORT</p><h2>Help keep SulitShelf free and open source</h2><span>{{ settings.donation_message }}</span></div><div class="billing-current free-access-badge"><small>YOUR ACCESS</small><strong>Free forever</strong><span>Donations never unlock or remove features</span></div></div>
-      <div class="support-principle"><span>♡</span><p><strong>Donations are completely optional.</strong> SulitShelf remains fully usable whether you donate or not. Contributions support hosting, maintenance, and future open-source development.</p></div>
+      <div class="billing-heading support-heading"><div><p>OPTIONAL SUPPORT</p><h2>Support the open-source project</h2><span>{{ settings.donation_message }}</span></div><div class="billing-current free-access-badge"><small>IMPORTANT</small><strong>Donation ≠ subscription</strong><span>Donations never activate or extend Pro</span></div></div>
+      <div class="support-principle"><span>♡</span><p><strong>Donations are completely optional.</strong> They support hosting, maintenance, and open-source development, but they never change your plan, product limit, or billing status.</p></div>
       <div class="billing-grid premium-billing-grid donation-tier-grid">
         {% for tier in tiers %}
         <article class="premium-plan-card donation-tier-card {% if tier.key=='supporter' %}recommended{% endif %}">
@@ -107,7 +216,7 @@
           <span class="donation-heart">{{ '☕' if tier.key=='coffee' else ('♡' if tier.key=='supporter' else '✦') }}</span>
           <p>{{ tier.name }}</p><h3>{{ php(tier.amount_cents) }}<small>one time</small></h3>
           <strong>{{ tier.description }}</strong>
-          <ul><li><i>✓</i> Optional one-time contribution</li><li><i>✓</i> No recurring charge</li><li><i>✓</i> Same free features for everyone</li></ul>
+          <ul><li><i>✓</i> Optional one-time contribution</li><li><i>✓</i> No recurring charge</li><li><i>✓</i> Does not activate Pro</li></ul>
           <form method="post" action="{{ url_for('payments.dodo_donate', tier_key=tier.key) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="plan-button">Donate with Dodo <span>→</span></button></form>
         </article>
         {% endfor %}

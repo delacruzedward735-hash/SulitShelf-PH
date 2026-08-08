@@ -1,0 +1,18 @@
+{
+  "name": "SulitShelf PH",
+  "short_name": "SulitShelf",
+  "id": "/",
+  "description": "Independent Filipino affiliate shops in one colorful mall.",
+  "lang": "en-PH",
+  "categories": ["shopping", "business", "lifestyle"],
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f7fa",
+  "theme_color": "#15151a",
+  "icons": [
+    {"src": "/static/images/app-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/static/images/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "/static/images/app-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

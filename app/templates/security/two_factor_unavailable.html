@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Security setup unavailable · SulitShelf PH{% endblock %}
+{% block body_class %}security-auth-page{% endblock %}
+{% block body %}
+<main class="security-auth-shell">
+  <a class="brand security-brand" href="{{ url_for('main.home') }}"><img class="brand-icon" src="{{ url_for('static', filename='images/brand-icon.webp') }}" alt=""><strong>SulitShelf <em>PH</em></strong></a>
+  <section class="security-auth-card security-unavailable-card">
+    <span class="security-step-mark">!</span>
+    <p class="eyebrow">SECURITY SERVICE UNAVAILABLE</p>
+    <h1>Authenticator setup is paused.</h1>
+    <p>Your account has not been changed. The server is waiting for its security configuration or database update to finish.</p>
+    <div class="security-unavailable-note"><b>Safe by default</b><span>We stopped setup instead of creating a recovery secret under an incomplete configuration.</span></div>
+    <a class="button primary" href="{{ url_for('main.home') }}">Return to SulitShelf PH <b>→</b></a>
+    <small>Support reference: {{ request_id }}</small>
+  </section>
+</main>
+{% endblock %}

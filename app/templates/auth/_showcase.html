@@ -1,0 +1,21 @@
+<aside class="auth-showcase auth-showcase-{{ auth_mode }}">
+  <a class="brand auth-showcase-brand" href="{{ url_for('main.home') }}" aria-label="SulitShelf PH home"><img class="brand-icon" src="{{ url_for('static', filename='images/brand-icon.webp') }}" alt=""><strong>SulitShelf <em>PH</em></strong></a>
+  <div class="auth-showcase-copy">
+    <span class="auth-showcase-kicker">{{ 'WELCOME BACK, PROMOTER' if auth_mode == 'login' else 'YOUR AFFILIATE HOME BASE' }}</span>
+    <h1>{{ 'Your shelf is ready when you are.' if auth_mode == 'login' else 'Turn your links into a shelf people remember.' }}</h1>
+    <p>{{ 'Pick up where you left off—manage products, see which links get attention, and keep your storefront fresh.' if auth_mode == 'login' else 'Create one colorful storefront for your Shopee, Lazada, and TikTok Shop affiliate finds. Start free and grow at your own pace.' }}</p>
+    <div class="auth-marketplaces" aria-label="Supported marketplaces"><span>Shopee</span><span>Lazada</span><span>TikTok Shop</span></div>
+    <ul class="auth-benefit-list">
+      {% if auth_mode == 'login' %}
+      <li><b>↗</b><span><strong>One simple studio</strong><small>Products, growth tools, billing, and shop settings together.</small></span></li>
+      <li><b>◎</b><span><strong>Useful performance signals</strong><small>See real outbound clicks and privacy-friendly aggregate views.</small></span></li>
+      <li><b>✓</b><span><strong>Secure account access</strong><small>Password, Google, GitHub, or Facebook when connected.</small></span></li>
+      {% else %}
+      <li><b>50</b><span><strong>50 product slots</strong><small>Free forever, with no trial countdown or card required to launch.</small></span></li>
+      <li><b>3</b><span><strong>Supported marketplaces</strong><small>Keep your approved affiliate parameters on every link.</small></span></li>
+      <li><b>₱49</b><span><strong>Affordable Pro growth</strong><small>Unlimited uploads, advanced analytics, imports, and branding.</small></span></li>
+      {% endif %}
+    </ul>
+  </div>
+  <small class="auth-showcase-foot">Independent promoter shops · Open-source foundation · Mobile ready</small>
+</aside>

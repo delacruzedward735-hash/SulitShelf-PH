@@ -1,31 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Open a shelf · SulitShelf PH{% endblock %}
-{% block body_class %}auth-page{% endblock %}
+{% block title %}Open a free shelf · SulitShelf PH{% endblock %}
+{% block body_class %}auth-page auth-access-page{% endblock %}
+{% block meta %}<meta name="description" content="Create a free SulitShelf PH promoter storefront for approved Shopee, Lazada, and TikTok Shop affiliate links."><meta name="robots" content="noindex,nofollow">{% endblock %}
 {% block body %}
-<main class="auth-shell">
-  <a class="brand" href="{{ url_for('main.home') }}"><i>▣</i><strong>SulitShelf <em>PH</em></strong></a>
-  <section>
-    <p class="eyebrow">FREE &amp; OPEN SOURCE</p>
-    <h1>Open your shelf.</h1>
-    <p>Publish approved affiliate products without a subscription or product-slot limit.</p>
-    <div class="oauth-grid" aria-label="Social registration options">
-      {% for provider in oauth_providers %}
-        {% if provider.configured %}
-          <a class="oauth-button oauth-{{ provider.key }}" href="{{ url_for('auth.oauth_start', provider=provider.key) }}"><b>{{ provider.mark }}</b><span>Join with {{ provider.name }}</span></a>
-        {% else %}
-          <span class="oauth-button unavailable" title="The administrator must configure this provider"><b>{{ provider.mark }}</b><span>{{ provider.name }} setup needed</span></span>
-        {% endif %}
-      {% endfor %}
-    </div>
-    <div class="oauth-divider"><span>or create a password account</span></div>
-    <form method="post">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label>Display name<input name="display_name" required minlength="2" maxlength="80" autocomplete="name"></label>
-      <label>Email<input type="email" name="email" required autocomplete="email"></label>
-      <label>Password<input type="password" name="password" required minlength="10" autocomplete="new-password"></label>
-      <button class="button primary">Create free promoter account</button>
-    </form>
-    <p>Already registered? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
-  </section>
+{% set auth_mode = 'register' %}
+<main class="auth-shell auth-access-shell">
+  <div class="auth-access-frame">
+    {% include "auth/_showcase.html" %}
+    <section class="auth-form-panel" aria-labelledby="register-title">
+      <a class="brand auth-mobile-brand" href="{{ url_for('main.home') }}"><img class="brand-icon" src="{{ url_for('static', filename='images/brand-icon.webp') }}" alt=""><strong>SulitShelf <em>PH</em></strong></a>
+      <header class="auth-form-header">
+        <p class="eyebrow">FREE TO START · NO CARD REQUIRED</p>
+        <h2 id="register-title">Open your shelf.</h2>
+        <p>Start with 50 products for free. Upgrade only when you need unlimited uploads and advanced growth tools.</p>
+      </header>
+      {% include "auth/_social_buttons.html" %}
+      <form class="auth-form" method="post" data-auth-form data-submit-label="Creating your shelf…">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="auth-field"><span>Display name</span><div class="auth-input-wrap"><i aria-hidden="true">Aa</i><input name="display_name" value="{{ request.form.get('display_name','') }}" required minlength="2" maxlength="80" autocomplete="name" placeholder="How shoppers will know you" autofocus></div></label>
+        <label class="auth-field"><span>Email address</span><div class="auth-input-wrap"><i aria-hidden="true">@</i><input type="email" name="email" value="{{ request.form.get('email','') }}" required autocomplete="email" inputmode="email" placeholder="you@example.com"></div></label>
+        <label class="auth-field"><span>Password</span><div class="auth-input-wrap auth-password-wrap"><i aria-hidden="true">••</i><input type="password" name="password" required minlength="12" maxlength="128" autocomplete="new-password" placeholder="Use at least 12 characters" data-password-strength-input><button type="button" data-password-toggle aria-label="Show password" aria-pressed="false">Show</button></div></label>
+        <div class="password-strength" data-password-strength aria-live="polite"><div><i></i><i></i><i></i><i></i></div><span>Use 12–128 characters</span></div>
+        <button class="button primary auth-submit" type="submit"><span>Create my free shelf</span><i aria-hidden="true">→</i></button>
+      </form>
+      <div class="auth-assurance"><span>✓ No trial expiry</span><span>✓ Direct marketplace links</span><span>✓ You control your shelf</span></div>
+      <p class="auth-switch">Already have a shelf? <a href="{{ url_for('auth.login') }}">Sign in instead</a></p>
+    </section>
+  </div>
 </main>
 {% endblock %}

@@ -1,0 +1,4 @@
+{% extends "base.html" %}
+{% block title %}Offline · SulitShelf PH{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+{% block body %}<main class="auth-shell"><a class="brand" href="{{ url_for('main.home') }}"><img class="brand-icon" src="{{ url_for('static', filename='images/brand-icon.webp') }}" alt=""><strong>SulitShelf <em>PH</em></strong></a><section class="recovery-card"><span class="recovery-icon invalid">!</span><p class="eyebrow">YOU ARE OFFLINE</p><h1>Connection unavailable.</h1><p>Reconnect to browse current marketplace listings, prices, and affiliate links.</p><button class="button primary" type="button" data-reload-page>Try again</button></section></main>{% endblock %}

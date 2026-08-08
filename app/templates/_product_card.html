@@ -1,4 +1,4 @@
-<article class="product-card market-{{ product.marketplace }}">
+<article class="product-card market-{{ product.marketplace }}" data-product-impression="{{ product.id }}" data-impression-source="{{ card_source|default('mall') }}">
   <a class="product-image" href="{{ url_for('main.product_detail', product_id=product.id) }}">
     <img src="{{ url_for('main.product_image', name=product.image_name) }}" alt="{{ product.name }}" loading="lazy">
     <span>{{ 'TikTok Shop' if product.marketplace == 'tiktok' else product.marketplace|title }}</span>
@@ -15,6 +15,7 @@
     <div class="card-price"><strong>{{ php(product.price_cents) }}</strong><small>Checked {{ product.price_checked_at.strftime('%b %d') }}</small></div>
     <div class="card-actions">
       <a class="button primary" href="{{ url_for('main.outbound', product_id=product.id, source=card_source|default('mall')) }}" target="_blank" rel="sponsored nofollow noopener">Check current price ↗</a>
+      <button class="card-details save-product" type="button" data-save-product="{{ product.id }}" aria-label="Save {{ product.name }}">♡ Save</button>
       <a class="card-details" href="{{ url_for('main.product_detail', product_id=product.id) }}" aria-label="View and share {{ product.name }}">Share</a>
     </div>
     {% if product.click_count %}<small class="real-clicks">{{ product.click_count }} real marketplace click{{ '' if product.click_count == 1 else 's' }}</small>{% endif %}

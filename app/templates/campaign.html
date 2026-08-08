@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ campaign.title }} · SulitShelf PH{% endblock %}
-{% block meta %}<meta name="description" content="{{ campaign.description }}"><link rel="canonical" href="{{ url_for('main.campaign', slug=campaign.slug, _external=True) }}">{% endblock %}
+{% block meta %}<meta name="description" content="{{ campaign.description }}"><meta property="og:title" content="{{ campaign.title }} · SulitShelf PH"><meta property="og:description" content="{{ campaign.description }}"><meta property="og:type" content="website"><link rel="canonical" href="{{ url_for('main.campaign', slug=campaign.slug, _external=True) }}">{% endblock %}
 {% block body %}
 {% include "_header.html" %}
 <main>

@@ -16,11 +16,14 @@ MARKETPLACE_HOSTS = {
 
 
 def detect_marketplace(raw_url):
+    if not raw_url or len(raw_url) > 2048 or "\r" in raw_url or "\n" in raw_url:
+        return None
     try:
         parsed = urlparse(raw_url)
+        port = parsed.port
     except ValueError:
         return None
-    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or port not in {None, 443}:
         return None
     host = parsed.hostname.lower().rstrip(".")
     for marketplace, roots in MARKETPLACE_HOSTS.items():
