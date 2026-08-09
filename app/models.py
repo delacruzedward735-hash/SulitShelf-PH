@@ -79,6 +79,25 @@ class User(UserMixin, TimestampMixin, db.Model):
         return bool(self.two_factor_enabled_at and self.two_factor_secret_ciphertext)
 
 
+class ApiToken(db.Model):
+    """A long-lived bearer token issued to a native client (e.g. the Android app).
+
+    Only the SHA-256 digest is stored, matching the PasswordResetToken pattern.
+    """
+
+    __tablename__ = "api_token"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    device_label = db.Column(db.String(120), nullable=False, default="Android device")
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+    last_used_at = db.Column(db.DateTime(timezone=True))
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    revoked_at = db.Column(db.DateTime(timezone=True), index=True)
+    user = db.relationship("User")
+
+
 class CRMMessage(db.Model):
     """An administrator message delivered to a promoter's private inbox."""
 

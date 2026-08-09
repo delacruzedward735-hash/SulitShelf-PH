@@ -89,6 +89,7 @@ def create_app(config_object=Config):
             return None
 
     from app.admin.routes import bp as admin_bp
+    from app.api.routes import bp as api_bp
     from app.auth.routes import bp as auth_bp
     from app.main.routes import bp as main_bp
     from app.payments.routes import bp as payments_bp
@@ -99,6 +100,22 @@ def create_app(config_object=Config):
     app.register_blueprint(promoter_bp, url_prefix="/studio")
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(payments_bp, url_prefix="/payments")
+    app.register_blueprint(api_bp, url_prefix="/api/v1")
+    # The API authenticates with a Bearer token (Android app), never a browser
+    # session cookie, so there is no ambient credential for CSRF to protect.
+    csrf.exempt(api_bp)
+
+    @app.errorhandler(404)
+    def not_found(error):
+        if request.path.startswith("/api/"):
+            return {"error": "not_found"}, 404
+        return error.get_response()
+
+    @app.errorhandler(429)
+    def rate_limited(error):
+        if request.path.startswith("/api/"):
+            return {"error": "rate_limited", "message": "Too many requests. Try again shortly."}, 429
+        return error.get_response()
 
     @app.before_request
     def guard_two_factor_dependencies():

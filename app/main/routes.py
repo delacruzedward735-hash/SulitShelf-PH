@@ -17,7 +17,7 @@ bp = Blueprint("main", __name__)
 
 TRACKING_SOURCES = {
     "campaign", "direct", "facebook", "instagram", "messenger", "qr", "shop",
-    "shared", "tiktok", "youtube", "mall", "admin-picks", "sponsored", "trending", "pwa", "saved",
+    "shared", "tiktok", "youtube", "mall", "admin-picks", "sponsored", "trending", "pwa", "saved", "android",
 }
 REPORT_REASONS = {
     "broken_link": "Broken or unavailable link",
