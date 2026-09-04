@@ -14,7 +14,7 @@
   <meta name="twitter:card" content="summary">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   {% if config.GOOGLE_SITE_VERIFICATION %}<meta name="google-site-verification" content="{{ config.GOOGLE_SITE_VERIFICATION }}">{% endif %}
-  {% block meta %}<meta name="description" content="SulitShelf PH — a free, open-source mall for independent affiliate shops.">{% endblock %}
+  {% block meta %}<meta name="description" content="SulitShelf PH — a proprietary mall platform for independent affiliate shops.">{% endblock %}
   {% block social_image %}
   <meta property="og:image" content="{{ url_for('static', filename='images/app-icon-512.png', _external=True) }}">
   <meta property="og:image:alt" content="SulitShelf PH storefront and affiliate-link icon">
@@ -32,7 +32,7 @@
 </head>
 <body class="{% block body_class %}{% endblock %}">
   {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}<div class="flash-stack">{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+    {% if messages %}<div class="flash-stack">{% for category, message in messages %}<div class="flash {{ category }}">{% if message == "Your free open-source promoter shelf is ready." %}Your free SulitShelf promoter shelf is ready.{% else %}{{ message }}{% endif %}</div>{% endfor %}</div>{% endif %}
   {% endwith %}
   {% block body %}{% endblock %}
   <script src="{{ url_for('static', filename='js/app.js', v='signout-28') }}" defer></script>
