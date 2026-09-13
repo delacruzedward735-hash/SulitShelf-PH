@@ -47,14 +47,16 @@
     </div>
   </section>
 
+  {% if campaigns %}
   <section class="section campaign-section" id="campaigns">
     <div class="section-title"><div><p class="eyebrow">QUICK COLLECTIONS</p><h2>Start with what you need.</h2></div><p>Campaign shelves make it easy to share one focused group of useful products.</p></div>
     <div class="campaign-grid">
       {% for campaign in campaigns %}
-      <a href="{{ url_for('main.campaign', slug=campaign.slug) }}"><small>{{ campaign.eyebrow }}</small><h3>{{ campaign.title }}</h3><p>{{ campaign.description }}</p><span>{{ campaign.products|length }} picks →</span></a>
+      <a href="{{ url_for('main.campaign', slug=campaign.slug) }}"><small>{{ campaign.eyebrow }}</small><h3>{{ campaign.title }}</h3><p>{{ campaign.description }}</p>{% if campaign.products %}<span>{{ campaign.products|length }} picks →</span>{% else %}<span>Awaiting first real pick →</span>{% endif %}</a>
       {% endfor %}
     </div>
   </section>
+  {% endif %}
 
   {% if admin_picks %}
   <section class="section feature-shelf admin-picks"><div class="section-title"><div><p class="eyebrow">SULITSHELF ADMIN PICKS</p><h2>Useful finds selected by the project.</h2></div><p>These links may earn the SulitShelf administrator an affiliate commission.</p></div><div class="product-grid">{% for product in admin_picks %}{% set card_source='admin-picks' %}{% include "_product_card.html" %}{% endfor %}</div></section>
@@ -81,7 +83,18 @@
       <select name="marketplace" aria-label="Marketplace"><option value="">All marketplaces</option>{% for value,label in [('shopee','Shopee'),('lazada','Lazada'),('tiktok','TikTok Shop')] %}<option value="{{ value }}" {% if selected_marketplace == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
       <button>Filter</button>
     </form>
-    {% if products %}<div class="product-grid">{% for product in products %}{% set card_source=home_source %}{% include "_product_card.html" %}{% endfor %}</div>{% else %}<div class="empty"><b>▣</b><h3>No products match this shelf yet.</h3><p>Try another search or department.</p></div>{% endif %}
+    {% if products %}
+      <div class="product-grid">{% for product in products %}{% set card_source=home_source %}{% include "_product_card.html" %}{% endfor %}</div>
+    {% elif not query and not selected_department and not selected_marketplace %}
+      <div class="empty catalog-launch-empty">
+        <b>✦</b>
+        <h3>The mall is ready for its first real picks.</h3>
+        <p>No public products have been published yet. Promoters can add genuine Shopee, Lazada, and TikTok Shop affiliate finds from Promoter Studio.</p>
+        <p><a class="button primary" href="{{ url_for('promoter.dashboard', tab='add') if current_user.is_authenticated else url_for('auth.register') }}">{{ 'Publish a real product' if current_user.is_authenticated else 'Open a free shelf' }}</a></p>
+      </div>
+    {% else %}
+      <div class="empty"><b>▣</b><h3>No products match these filters.</h3><p>Clear the filters or try a broader search.</p><a class="text-link" href="{{ url_for('main.home') }}#products">Clear filters →</a></div>
+    {% endif %}
   </section>
 
   <section class="plans-section" id="plans"><div><p class="eyebrow">START FREE, GROW CHEAP</p><h2>Your links.<br>Your shop.<br><span>Just ₱49 to grow smarter.</span></h2><p>Launch a full affiliate storefront free with 50 products. Upgrade for serious growth tools—no trial countdown and no surprise feature lock.</p><a class="button primary" href="{{ url_for('auth.register') }}">Open a free shelf</a></div><div class="plan-grid"><article><p>Free</p><h3>₱0<small>forever</small></h3><strong>50 products, no trial</strong><ul><li>✓ Public affiliate shop</li><li>✓ Basic clicks, health and QR sharing</li><li>✓ Shopee, Lazada &amp; TikTok Shop</li></ul><a href="{{ url_for('auth.register') }}">Start free →</a></article><article class="landing-pro-card"><p>Pro</p><h3>{{ php(pro_plan.price_cents if pro_plan else 4900) }}<small>/month</small></h3><strong>Unlimited products plus the Growth Center</strong><ul><li>✓ Bulk and commission CSV imports</li><li>✓ Views, CTR and device analytics</li><li>✓ Logo, banner and shop themes</li></ul><a href="{{ url_for('auth.register') }}">Build your shelf →</a></article><article><p>Proprietary platform</p><h3>Private<small>source</small></h3><strong>Sulitshelf is developed and maintained as proprietary software</strong><ul><li>✓ Source code is not publicly distributed</li><li>✓ Optional one-time donations</li><li>✓ Donations never activate Pro</li></ul><a href="{{ url_for('auth.register') }}">Join SulitShelf →</a></article></div></section>
