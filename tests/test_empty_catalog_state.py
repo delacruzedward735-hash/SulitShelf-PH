@@ -1,3 +1,6 @@
+"""Regression coverage for an intentionally empty public catalog."""
+
+
 def test_empty_catalog_uses_truthful_launch_state_and_hides_zero_pick_campaigns(client):
     response = client.get("/")
 
