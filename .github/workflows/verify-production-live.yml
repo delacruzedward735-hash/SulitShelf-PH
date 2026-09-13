@@ -1,0 +1,57 @@
+name: Verify SulitShelf Production
+
+on:
+  push:
+    branches:
+      - verify/live-production-20260913
+
+permissions:
+  contents: read
+
+jobs:
+  probe-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify Render liveness and readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in health/live health/ready; do
+            echo "Checking https://sulitshelf-ph.onrender.com/$path"
+            body="$(curl --fail --silent --show-error --location --retry 5 --retry-delay 5 --connect-timeout 15 --max-time 45 "https://sulitshelf-ph.onrender.com/$path")"
+            printf '%s\n' "$body"
+            grep -q '"status"' <<<"$body"
+          done
+
+      - name: Verify repaired public homepage
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='The mall is ready for its first real picks.'
+          homepage=''
+          for attempt in {1..18}; do
+            echo "Homepage probe attempt $attempt"
+            if homepage="$(curl --fail --silent --show-error --location --connect-timeout 15 --max-time 45 'https://sulitshelf-ph.myportfoliohub.online/')"; then
+              if grep -Fq "$expected" <<<"$homepage"; then
+                echo 'PRODUCTION_HOMEPAGE_UPDATED=YES'
+                break
+              fi
+            fi
+            if [[ "$attempt" -eq 18 ]]; then
+              echo 'Production homepage did not expose the merged empty-catalog fix.' >&2
+              echo 'Observed marker:' >&2
+              grep -Eo '0 picks|No products match this shelf yet\.|Awaiting first real pick|The mall is ready for its first real picks\.' <<<"$homepage" | head -20 >&2 || true
+              exit 1
+            fi
+            sleep 10
+          done
+          grep -Fq 'Awaiting first real pick' <<<"$homepage"
+          if grep -Fq '0 picks' <<<"$homepage"; then
+            echo 'Old zero-pick marker is still present.' >&2
+            exit 1
+          fi
+          if grep -Fq 'No products match this shelf yet.' <<<"$homepage"; then
+            echo 'Old generic empty-catalog marker is still present.' >&2
+            exit 1
+          fi
