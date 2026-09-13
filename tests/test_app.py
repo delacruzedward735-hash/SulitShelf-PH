@@ -1745,3 +1745,66 @@ def test_public_growth_surfaces_are_safe_and_discoverable(client, app):
     detail = client.get(f"/product/{product_id}")
     assert b"application/ld+json" in detail.data
     assert b'"priceCurrency": "PHP"' in detail.data
+
+
+
+def test_superadmin_health_monitor_is_private_and_safe(client, app):
+    anonymous = client.get("/admin/health.json")
+    assert anonymous.status_code in {302, 401}
+
+    register(client, email="health-admin@example.com")
+    promoter = client.get("/admin/health.json")
+    assert promoter.status_code == 403
+
+    with app.app_context():
+        user = db.session.scalar(db.select(User).where(User.email == "health-admin@example.com"))
+        user.role = "admin"
+        db.session.commit()
+
+    page = client.get("/admin/?tab=health")
+    assert page.status_code == 200
+    assert b"System health monitor" in page.data
+    assert b"PostgreSQL / DB" in page.data
+    assert b"Public catalog" in page.data
+    assert b"Run health check" in page.data
+
+    response = client.get("/admin/health.json")
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "private, no-store"
+    payload = response.get_json()
+    assert payload["checks"]["database"]["status"] == "ok"
+    assert payload["checks"]["catalog"]["status"] == "warning"
+    assert payload["counts"]["public_products"] == 0
+    assert payload["configuration"]["database_backend"] == "sqlite"
+    serialized = json.dumps(payload).lower()
+    assert "database_url" not in serialized
+    assert "secret_key" not in serialized
+    assert "cloudinary_url" not in serialized
+    assert "api_key" not in serialized
+
+
+def test_superadmin_health_monitor_marks_real_public_catalog_healthy(client, app):
+    register(client, email="health-catalog-admin@example.com")
+    with app.app_context():
+        user = db.session.scalar(db.select(User).where(User.email == "health-catalog-admin@example.com"))
+        user.role = "admin"
+        product = Product(
+            shop=user.shop,
+            name="Health Monitor Test Product",
+            description="A real-looking test listing used only inside the isolated test database.",
+            why_sulit="It verifies that active visible products are counted correctly by the health monitor.",
+            best_for="automated regression tests",
+            department="Tech & Gadgets",
+            marketplace="shopee",
+            affiliate_url="https://shopee.ph/health-monitor-test",
+            price_cents=19900,
+            image_name="missing.webp",
+            status="active",
+        )
+        db.session.add(product)
+        db.session.commit()
+
+    payload = client.get("/admin/health.json").get_json()
+    assert payload["checks"]["catalog"]["status"] == "ok"
+    assert payload["counts"]["public_products"] == 1
+    assert payload["counts"]["products_total"] == 1
