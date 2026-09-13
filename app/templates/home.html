@@ -47,16 +47,12 @@
     </div>
   </section>
 
-  {% set campaign_state = namespace(has_picks=false) %}
-  {% for campaign in campaigns %}
-    {% if campaign.products %}{% set campaign_state.has_picks = true %}{% endif %}
-  {% endfor %}
-  {% if campaign_state.has_picks %}
+  {% if campaigns %}
   <section class="section campaign-section" id="campaigns">
     <div class="section-title"><div><p class="eyebrow">QUICK COLLECTIONS</p><h2>Start with what you need.</h2></div><p>Campaign shelves make it easy to share one focused group of useful products.</p></div>
     <div class="campaign-grid">
       {% for campaign in campaigns %}
-      {% if campaign.products %}<a href="{{ url_for('main.campaign', slug=campaign.slug) }}"><small>{{ campaign.eyebrow }}</small><h3>{{ campaign.title }}</h3><p>{{ campaign.description }}</p><span>{{ campaign.products|length }} picks →</span></a>{% endif %}
+      <a href="{{ url_for('main.campaign', slug=campaign.slug) }}"><small>{{ campaign.eyebrow }}</small><h3>{{ campaign.title }}</h3><p>{{ campaign.description }}</p>{% if campaign.products %}<span>{{ campaign.products|length }} picks →</span>{% else %}<span>Awaiting first real pick →</span>{% endif %}</a>
       {% endfor %}
     </div>
   </section>
