@@ -8,7 +8,7 @@ from redis import Redis
 from sqlalchemy import inspect, text
 
 from app.extensions import db
-from app.models import PlatformSettings
+from app.models import PlatformSettings, Product, Shop, User
 
 
 PROCESS_STARTED_AT = datetime.now(timezone.utc)
@@ -153,6 +153,160 @@ def readiness_report():
         report["reason"] = reason
         return report, 503
     return report, 200
+
+
+def admin_health_report():
+    # Administrator-safe operational snapshot. Never return URLs with
+    # credentials, API keys, bearer tokens, passwords, or provider secrets.
+    report, readiness_status = readiness_report()
+    checks = dict(report.get("checks", {}))
+    counts = {
+        "users_total": 0,
+        "active_promoters": 0,
+        "shops_total": 0,
+        "products_total": 0,
+        "public_products": 0,
+        "paused_products": 0,
+    }
+    recommendations = []
+
+    try:
+        counts["users_total"] = db.session.scalar(db.select(db.func.count(User.id))) or 0
+        counts["active_promoters"] = (
+            db.session.scalar(
+                db.select(db.func.count(User.id)).where(
+                    User.role == "promoter",
+                    User.is_active_account.is_(True),
+                )
+            )
+            or 0
+        )
+        counts["shops_total"] = db.session.scalar(db.select(db.func.count(Shop.id))) or 0
+        counts["products_total"] = db.session.scalar(db.select(db.func.count(Product.id))) or 0
+        counts["paused_products"] = (
+            db.session.scalar(db.select(db.func.count(Product.id)).where(Product.status != "active"))
+            or 0
+        )
+        counts["public_products"] = (
+            db.session.scalar(
+                db.select(db.func.count(Product.id))
+                .join(Shop, Product.shop_id == Shop.id)
+                .join(User, Shop.owner_id == User.id)
+                .where(
+                    Product.status == "active",
+                    User.is_active_account.is_(True),
+                )
+            )
+            or 0
+        )
+        catalog_status = "ok" if counts["public_products"] else "warning"
+        checks["catalog"] = {
+            "status": catalog_status,
+            "public_products": counts["public_products"],
+            "products_total": counts["products_total"],
+            "paused_products": counts["paused_products"],
+        }
+        if catalog_status == "warning":
+            recommendations.append(
+                "No public products are visible. Publish or restore genuine active listings before promoting the mall."
+            )
+    except Exception as error:
+        db.session.rollback()
+        checks["catalog"] = {"status": "failed", "reason": "catalog_query_failed"}
+        recommendations.append(
+            "Catalog diagnostics failed. Check the application logs and database schema before publishing changes."
+        )
+        current_app.logger.warning(
+            "admin health catalog check failed error_type=%s",
+            type(error).__name__,
+        )
+
+    requested_storage = current_app.config["IMAGE_STORAGE_BACKEND"]
+    cloudinary_configured = bool(current_app.config["CLOUDINARY_URL"])
+    if requested_storage == "auto":
+        effective_storage = "cloudinary" if cloudinary_configured else "local"
+    else:
+        effective_storage = requested_storage
+
+    storage_status = "ok"
+    storage_reason = None
+    if requested_storage == "cloudinary" and not cloudinary_configured:
+        storage_status = "failed"
+        storage_reason = "cloudinary_not_configured"
+        recommendations.append(
+            "Cloudinary is selected but not configured. Set CLOUDINARY_URL before accepting image uploads."
+        )
+    elif current_app.config["IS_PRODUCTION"] and effective_storage == "local":
+        storage_status = "warning"
+        storage_reason = "local_storage_in_production"
+        recommendations.append(
+            "Image storage is local in production. Use Cloudinary or verified persistent storage to prevent upload loss."
+        )
+    checks["storage"] = {
+        "status": storage_status,
+        "backend": effective_storage,
+        "reason": storage_reason,
+    }
+
+    redis_status = checks.get("redis", {}).get("status")
+    if current_app.config["IS_PRODUCTION"] and redis_status == "skipped":
+        recommendations.append(
+            "Redis is not configured. Use Redis for shared rate-limit state before scaling to multiple web instances."
+        )
+
+    heartbeat_configured = bool(current_app.config["HEARTBEAT_TOKEN"])
+    if current_app.config["IS_PRODUCTION"] and not heartbeat_configured:
+        recommendations.append(
+            "HEARTBEAT_TOKEN is not configured. Add one for authenticated external uptime monitoring."
+        )
+
+    database_backend = db.engine.url.get_backend_name()
+    if current_app.config["IS_PRODUCTION"] and database_backend != "postgresql":
+        recommendations.append(
+            "Production is not using PostgreSQL. Confirm DATABASE_URL points to the intended production database."
+        )
+
+    public_url = urlparse(current_app.config["PUBLIC_BASE_URL"])
+    public_host = public_url.netloc or public_url.path or "local"
+    email_configured = bool(
+        current_app.config["RESEND_API_KEY"] or current_app.config["MAILERSEND_API_TOKEN"]
+    )
+
+    critical = readiness_status != 200 or any(
+        checks.get(name, {}).get("status") == "failed"
+        for name in ("database", "redis", "catalog", "storage")
+    )
+    warning = any(
+        checks.get(name, {}).get("status") == "warning"
+        for name in ("catalog", "storage")
+    ) or (
+        current_app.config["IS_PRODUCTION"]
+        and (redis_status == "skipped" or not heartbeat_configured)
+    )
+
+    status = "critical" if critical else ("warning" if warning else "healthy")
+    return {
+        "status": status,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "app": {
+            "version": report.get("version"),
+            "code_release": report.get("code_release"),
+            "started_at": report.get("started_at"),
+            "uptime_seconds": report.get("uptime_seconds"),
+        },
+        "checks": checks,
+        "counts": counts,
+        "configuration": {
+            "environment": current_app.config["APP_ENV"],
+            "public_host": public_host,
+            "database_backend": database_backend,
+            "heartbeat_configured": heartbeat_configured,
+            "password_reset_enabled": bool(current_app.config["PASSWORD_RESET_ENABLED"]),
+            "email_configured": email_configured,
+            "storage_backend": effective_storage,
+        },
+        "recommendations": recommendations,
+    }
 
 
 def _elapsed_ms(started):

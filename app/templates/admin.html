@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Admin CMS · SulitShelf PH{% endblock %}
+{% block meta %}<meta name="description" content="Private SulitShelf administrator operations console."><link rel="stylesheet" href="{{ url_for('static', filename='css/admin-health.css', v='health-1') }}">{% endblock %}
 {% block body_class %}dashboard-page{% endblock %}
 {% block body %}
 <main class="dashboard-shell admin" data-tab-root data-default-tab="{{ request.args.get('tab','overview') }}">
   <aside class="dash-sidebar">
     <a class="brand light" href="{{ url_for('main.home') }}"><img class="brand-icon" src="{{ url_for('static', filename='images/brand-icon.webp') }}" alt=""><strong>SulitShelf PH</strong></a><small>ADMINISTRATOR CMS</small>
-    <nav><button data-tab-button="overview">Dashboard</button><button data-tab-button="campaigns">Campaign shelves</button><button data-tab-button="reports">Listing reports</button><button data-tab-button="promoters">Promoters</button><button data-tab-button="crm">CRM &amp; messages</button><button data-tab-button="subscriptions">Pro plan settings</button><button data-tab-button="subscription-payments">Pro payment reviews</button><button data-tab-button="tiers">Donation amounts</button><button data-tab-button="donations">Donation reviews</button><button data-tab-button="wallet">E-wallet &amp; QR</button></nav>
+    <nav><button data-tab-button="overview">Dashboard</button><button data-tab-button="health">System health</button><button data-tab-button="campaigns">Campaign shelves</button><button data-tab-button="reports">Listing reports</button><button data-tab-button="promoters">Promoters</button><button data-tab-button="crm">CRM &amp; messages</button><button data-tab-button="subscriptions">Pro plan settings</button><button data-tab-button="subscription-payments">Pro payment reviews</button><button data-tab-button="tiers">Donation amounts</button><button data-tab-button="donations">Donation reviews</button><button data-tab-button="wallet">E-wallet &amp; QR</button></nav>
     <a href="{{ url_for('promoter.dashboard') }}">Promoter studio</a><a href="{{ url_for('main.home') }}">Public mall</a>
   </aside>
   <section class="dash-main"><header><div><p>CONTENT, TRUST &amp; COMMUNITY CONTROL</p><h1>Administrator CMS</h1></div><strong>{{ current_user.email }}</strong></header>
@@ -14,6 +15,30 @@
       <div class="stats five"><article><small>Promoters</small><strong>{{ stats.promoters }}</strong></article><article><small>Active Pro shops</small><strong>{{ stats.pro_shops }}</strong></article><article><small>Listings</small><strong>{{ stats.listings }}</strong></article><article><small>Pending Pro payments</small><strong>{{ stats.pending_subscriptions }}</strong></article><article><small>Manual Pro revenue</small><strong>{{ php(stats.manual_subscription_cents) }}</strong></article></div>
       <div class="panel"><div class="panel-title"><div><p>OPEN-SOURCE OPERATIONS</p><h2>Grow with transparent trust signals</h2></div><span class="status active">MIT LICENSED</span></div><div class="two-cards"><article><h3>Campaign collections</h3><p>Build focused shelves for student finds, brownout essentials, budget setups, and seasonal content.</p></article><article><h3>{{ stats.reports }} listing report{{ '' if stats.reports==1 else 's' }}</h3><p>Review visitor concerns and pause a listing when its details or link should be checked.</p></article></div></div>
       <div class="panel oauth-admin-panel"><div class="panel-title"><div><p>SOCIAL AUTHENTICATION</p><h2>OAuth provider readiness</h2></div><span>Secrets stay in environment variables</span></div><div class="oauth-admin-grid">{% for provider in oauth_providers %}<article class="{% if provider.configured %}configured{% endif %}"><b class="provider-mark oauth-{{ provider.key }}">{{ provider.mark }}</b><div><strong>{{ provider.name }}</strong><small>{{ 'Configured' if provider.configured else 'Client ID and secret required' }}</small><code>{{ provider.callback_url }}</code></div><span>{{ 'READY' if provider.configured else 'SETUP' }}</span></article>{% endfor %}</div></div>
+    </section>
+
+
+    <section data-tab-panel="health" hidden data-health-monitor data-health-endpoint="{{ url_for('admin.health_monitor_json') }}" data-health-state="{{ health.status }}">
+      <div class="health-hero">
+        <div><p>OPERATIONS &amp; RELIABILITY</p><h2>System health monitor</h2><span>Private runtime checks for the web app, PostgreSQL, Redis, image storage, and public catalog.</span></div>
+        <div class="health-overall"><small>OVERALL STATUS</small><strong data-health-overall>{{ health.status|upper }}</strong><span data-health-checked>Checked {{ health.checked_at }}</span><button type="button" data-health-refresh>Run health check</button></div>
+      </div>
+
+      <div class="health-grid">
+        {% for key, label in [('database','PostgreSQL / DB'),('redis','Redis / rate limit'),('storage','Image storage'),('catalog','Public catalog')] %}
+        {% set item = health.checks.get(key, {}) %}
+        <article class="health-card" data-health-check-card="{{ key }}" data-state="{{ item.get('status','unknown') }}"><div><span class="health-dot"></span><small>{{ label }}</small></div><strong data-health-check-status="{{ key }}">{{ item.get('status','unknown')|upper }}</strong><p>{% if item.get('latency_ms') is not none %}<span data-health-latency="{{ key }}">{{ item.get('latency_ms') }} ms</span>{% elif key == 'storage' %}<span data-health-latency="{{ key }}">{{ item.get('backend','unknown')|title }}</span>{% elif key == 'catalog' %}<span data-health-latency="{{ key }}">{{ item.get('public_products',0) }} public products</span>{% else %}<span data-health-latency="{{ key }}">No latency sample</span>{% endif %}</p></article>
+        {% endfor %}
+      </div>
+
+      <div class="health-layout">
+        <div class="panel health-runtime-panel"><div class="panel-title"><div><p>APPLICATION RUNTIME</p><h2>Release and uptime</h2></div><span>No secrets exposed</span></div><div class="health-facts"><article><small>Environment</small><strong>{{ health.configuration.environment|upper }}</strong></article><article><small>App version</small><strong>{{ health.app.version }}</strong></article><article><small>Code release</small><strong>{{ health.app.code_release }}</strong></article><article><small>Uptime</small><strong><span data-health-uptime>{{ health.app.uptime_seconds|int }}</span> sec</strong></article><article><small>Public host</small><strong>{{ health.configuration.public_host }}</strong></article><article><small>Database engine</small><strong>{{ health.configuration.database_backend|upper }}</strong></article></div></div>
+        <div class="panel health-config-panel"><div class="panel-title"><div><p>PRODUCTION SIGNALS</p><h2>Configuration readiness</h2></div><span>Presence only</span></div><div class="health-config-list"><article><span>Heartbeat protection</span><strong class="{{ 'ok' if health.configuration.heartbeat_configured else 'warn' }}">{{ 'CONFIGURED' if health.configuration.heartbeat_configured else 'NOT SET' }}</strong></article><article><span>Password reset</span><strong class="{{ 'ok' if health.configuration.password_reset_enabled else 'warn' }}">{{ 'ENABLED' if health.configuration.password_reset_enabled else 'DISABLED' }}</strong></article><article><span>Email delivery</span><strong class="{{ 'ok' if health.configuration.email_configured else 'warn' }}">{{ 'CONFIGURED' if health.configuration.email_configured else 'NOT SET' }}</strong></article><article><span>Image backend</span><strong>{{ health.configuration.storage_backend|upper }}</strong></article></div></div>
+      </div>
+
+      <div class="panel health-catalog-panel"><div class="panel-title"><div><p>DATA VISIBILITY</p><h2>Catalog and account counts</h2></div><span>Read-only database totals</span></div><div class="health-counts"><article><small>Users</small><strong data-health-count="users_total">{{ health.counts.users_total }}</strong></article><article><small>Active promoters</small><strong data-health-count="active_promoters">{{ health.counts.active_promoters }}</strong></article><article><small>Shops</small><strong data-health-count="shops_total">{{ health.counts.shops_total }}</strong></article><article><small>All products</small><strong data-health-count="products_total">{{ health.counts.products_total }}</strong></article><article><small>Public products</small><strong data-health-count="public_products">{{ health.counts.public_products }}</strong></article><article><small>Paused products</small><strong data-health-count="paused_products">{{ health.counts.paused_products }}</strong></article></div></div>
+
+      <div class="panel health-actions"><div class="panel-title"><div><p>OPERATOR ACTIONS</p><h2>Warnings and recommendations</h2></div><span data-health-recommendation-count>{{ health.recommendations|length }} item{{ '' if health.recommendations|length == 1 else 's' }}</span></div><div data-health-recommendations>{% if health.recommendations %}<ul>{% for recommendation in health.recommendations %}<li>{{ recommendation }}</li>{% endfor %}</ul>{% else %}<div class="health-clear">✓ Core checks are healthy. No immediate operator action is required.</div>{% endif %}</div><div class="health-links"><a href="{{ url_for('health_live') }}" target="_blank" rel="noopener">Liveness endpoint ↗</a><a href="{{ url_for('health_ready') }}" target="_blank" rel="noopener">Readiness endpoint ↗</a></div></div>
     </section>
 
     <section data-tab-panel="campaigns" hidden>
@@ -57,4 +82,5 @@
     </section>
   </section>
 </main>
+  <script src="{{ url_for('static', filename='js/admin-health.js', v='health-1') }}" defer></script>
 {% endblock %}

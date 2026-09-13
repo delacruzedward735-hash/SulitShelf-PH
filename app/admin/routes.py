@@ -2,7 +2,7 @@ import json
 import re
 from decimal import Decimal, InvalidOperation
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import current_user
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
@@ -28,6 +28,7 @@ from app.services.authz import admin_required
 from app.services.billing import active_subscription, grant_manual_pro
 from app.services.catalog import slugify
 from app.services.email import EmailDeliveryError, send_crm_message_email
+from app.services.health import admin_health_report
 from app.services.storage import UploadError, delete_file, media_url, path_for, save_image
 
 bp = Blueprint("admin", __name__)
@@ -121,6 +122,7 @@ def dashboard():
         "crm_messages": db.session.scalar(db.select(db.func.count(CRMMessage.id))) or 0,
         "crm_unread": db.session.scalar(db.select(db.func.count(CRMMessage.id)).where(CRMMessage.read_at.is_(None))) or 0,
     }
+    health = admin_health_report()
     return render_template(
         "admin.html",
         tiers=tiers,
@@ -135,7 +137,16 @@ def dashboard():
         crm_messages=crm_messages,
         settings=settings,
         stats=stats,
+        health=health,
     )
+
+
+@bp.get("/health.json")
+@admin_required
+def health_monitor_json():
+    response = jsonify(admin_health_report())
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @bp.post("/crm/messages")
